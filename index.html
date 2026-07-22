@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MODO CAVERNA</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black:  #080808;
+    --deep:   #0f0f0f;
+    --cave:   #141414;
+    --stone:  #1c1c1c;
+    --rock:   #282828;
+    --ash:    #3a3a3a;
+    --gray:   #666;
+    --muted:  #999;
+    --light:  #d0d0d0;
+    --white:  #efefef;
+    --fire:   #f59e0b;
+    --ember:  #d97706;
+    --coal:   #92400e;
+    --red:    #ef4444;
+    --green:  #22c55e;
+    --green-d:#15803d;
+    --blue:   #3b82f6;
+    --purple: #8b5cf6;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── FLAME BAR ── */
+  #flame-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--coal), var(--ember), var(--fire), var(--ember), var(--coal), transparent);
+    background-size: 200% 100%;
+    animation: flame 3s ease-in-out infinite;
+    z-index: 1000;
+    transition: height .4s, box-shadow .4s;
+  }
+  #flame-bar.strong { height: 5px; box-shadow: 0 0 18px var(--fire), 0 0 36px var(--ember); }
+  @keyframes flame { 0%,100%{background-position:0%} 50%{background-position:100%} }
+
+  /* ── SYNC STATUS ── */
+  #sync-bar {
+    position: fixed; top: 3px; right: 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: .1em;
+    color: var(--gray); z-index: 1001;
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 0;
+  }
+  .sync-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gray); transition: background .4s;
+  }
+  .sync-dot.ok { background: var(--green); }
+  .sync-dot.err { background: var(--red); }
+  .sync-dot.loading { background: var(--fire); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── HEADER ── */
+  header { padding: 52px 0 28px; text-align: center; border-bottom: 1px solid var(--rock); }
+  .eyebrow {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    letter-spacing: .35em; color: var(--fire); text-transform: uppercase; margin-bottom: 14px;
+  }
+  h1 { font-size: clamp(44px,10vw,90px); font-weight: 700; letter-spacing: -.03em; line-height: .9; }
+  h1 span { color: var(--fire); }
+  .header-sub { margin-top: 18px; font-size: 13px; color: var(--muted); letter-spacing: .05em; font-family: 'Space Mono', monospace; }
+  #date-display { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--gray); margin-top: 6px; }
+
+  /* ── NAV ── */
+  nav {
+    display: flex; justify-content: center; gap: 4px;
+    padding: 16px; border-bottom: 1px solid var(--rock);
+    flex-wrap: wrap; position: sticky; top: 3px;
+    background: rgba(8,8,8,.96); backdrop-filter: blur(8px); z-index: 100;
+  }
+  nav a {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    letter-spacing: .15em; text-transform: uppercase;
+    color: var(--gray); text-decoration: none;
+    padding: 7px 14px; border: 1px solid transparent; border-radius: 2px; transition: all .2s;
+  }
+  nav a:hover, nav a.active { color: var(--fire); border-color: var(--coal); background: rgba(245,158,11,.06); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  section { padding: 56px 0; border-bottom: 1px solid var(--rock); }
+  section[id] { scroll-margin-top: 58px; }
+  .sec-label {
+    font-family: 'Space Mono', monospace; font-size: 9px;
+    letter-spacing: .4em; text-transform: uppercase; color: var(--fire); margin-bottom: 10px;
+  }
+  h2 { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 28px; }
+
+  /* ── CARDS MISSÃO ── */
+  .mission-card {
+    background: var(--cave); border: 1px solid var(--rock);
+    border-left: 3px solid var(--fire); padding: 28px; margin-bottom: 20px;
+  }
+  .mission-text { font-size: 18px; font-weight: 500; line-height: 1.55; color: var(--light); font-style: italic; }
+  .filter-box {
+    background: var(--stone); border: 1px solid var(--ash);
+    padding: 18px 22px; margin-top: 14px; display: flex; gap: 14px; align-items: flex-start;
+  }
+  .filter-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+  .filter-text { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .filter-text strong { color: var(--fire); }
+
+  .principle { padding: 18px 0; border-bottom: 1px solid var(--rock); display: flex; gap: 18px; }
+  .principle:last-child { border-bottom: none; }
+  .p-num { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; color: var(--rock); flex-shrink: 0; width: 44px; line-height: 1; }
+  .p-body h4 { font-size: 14px; font-weight: 600; color: var(--light); margin-bottom: 5px; }
+  .p-body p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* ── RING ── */
+  .ring-wrap { display: flex; align-items: center; gap: 28px; margin-bottom: 32px; flex-wrap: wrap; }
+  .ring-container { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+  .ring-container svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--rock); stroke-width: 8; }
+  .ring-fill {
+    fill: none; stroke: var(--fire); stroke-width: 8; stroke-linecap: round;
+    stroke-dasharray: 301.59; stroke-dashoffset: 301.59;
+    transition: stroke-dashoffset .8s ease;
+    filter: drop-shadow(0 0 5px var(--ember));
+  }
+  .ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-pct { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; color: var(--fire); }
+  .ring-lbl { font-size: 8px; letter-spacing: .15em; color: var(--gray); text-transform: uppercase; margin-top: 2px; }
+  .ring-meta h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  .ring-streak { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--fire); margin-bottom: 4px; }
+  .ring-sub { font-size: 12px; color: var(--gray); }
+
+  /* ── CHECKLIST ── */
+  .checklist { display: flex; flex-direction: column; gap: 7px; margin-bottom: 28px; }
+  .check-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; background: var(--cave); border: 1px solid var(--rock);
+    cursor: pointer; transition: all .2s; user-select: none;
+  }
+  .check-item:hover { border-color: var(--ash); background: var(--stone); }
+  .check-item.done { border-color: var(--green-d); background: rgba(34,197,94,.05); }
+  .check-item.loading-item { opacity: .6; pointer-events: none; }
+  .check-box {
+    width: 20px; height: 20px; border: 2px solid var(--ash); border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all .2s; font-size: 12px;
+  }
+  .check-item.done .check-box { background: var(--green); border-color: var(--green); color: #000; }
+  .check-title { font-size: 13px; font-weight: 500; color: var(--light); transition: color .2s; flex: 1; }
+  .check-item.done .check-title { color: var(--gray); text-decoration: line-through; }
+  .check-cat { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: .15em; color: var(--gray); text-transform: uppercase; margin-top: 2px; }
+  .cat-fire { color: var(--coal); }
+  .cat-green { color: var(--green-d); }
+  .cat-blue { color: #1d4ed8; }
+
+  /* ── MÉTRICAS ── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 28px; }
+  .metric-card { background: var(--cave); border: 1px solid var(--rock); padding: 18px; }
+  .metric-label { font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: .3em; text-transform: uppercase; color: var(--gray); margin-bottom: 10px; }
+  .metric-input {
+    background: transparent; border: none; border-bottom: 1px solid var(--ash);
+    color: var(--fire); font-family: 'Space Mono', monospace; font-size: 26px; font-weight: 700;
+    width: 100%; outline: none; padding-bottom: 4px; transition: border-color .2s;
+  }
+  .metric-input:focus { border-color: var(--fire); }
+  .metric-unit { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .metric-delta { font-size: 10px; margin-top: 3px; }
+  .delta-up { color: var(--green); }
+  .delta-down { color: var(--red); }
+
+  /* ── REGRAS ── */
+  .rule-hard {
+    background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.22);
+    padding: 15px 18px; margin-bottom: 8px; font-size: 13px; color: var(--light); line-height: 1.5;
+  }
+  .rule-hard::before { content: '⚠ REGRA DURA — '; color: var(--red); font-weight: 700; font-size: 10px; letter-spacing: .1em; }
+  .rules-group { margin-bottom: 28px; }
+  .rules-group-title {
+    font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: .3em;
+    text-transform: uppercase; color: var(--fire); margin-bottom: 10px;
+    padding-bottom: 7px; border-bottom: 1px solid var(--rock);
+  }
+  .rule-item { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--rock); }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-arr { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--coal); flex-shrink: 0; width: 20px; margin-top: 1px; }
+  .rule-text { font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .rule-text strong { color: var(--light); }
+
+  /* ── REVISÃO ── */
+  .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 580px) { .review-grid { grid-template-columns: 1fr; } }
+  .review-card { background: var(--cave); border: 1px solid var(--rock); padding: 18px; }
+  .review-card-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--gray); margin-bottom: 8px; }
+  .review-textarea {
+    background: transparent; border: none; color: var(--light);
+    font-family: 'Space Grotesk', sans-serif; font-size: 13px;
+    width: 100%; min-height: 75px; resize: vertical; outline: none; line-height: 1.6;
+  }
+  .review-textarea::placeholder { color: var(--ash); }
+
+  /* ── HISTÓRICO ── */
+  .history-week {
+    background: var(--cave); border: 1px solid var(--rock);
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .history-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; cursor: pointer; transition: background .2s;
+  }
+  .history-header:hover { background: var(--stone); }
+  .history-week-label { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--fire); }
+  .history-stats { font-size: 12px; color: var(--muted); display: flex; gap: 16px; }
+  .history-body { padding: 0 18px 16px; border-top: 1px solid var(--rock); display: none; }
+  .history-body.open { display: block; }
+  .history-metric { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--rock); font-size: 12px; }
+  .history-metric:last-child { border-bottom: none; }
+  .history-metric-key { color: var(--muted); }
+  .history-metric-val { color: var(--fire); font-family: 'Space Mono', monospace; }
+
+  /* ── BOTÕES ── */
+  .btn {
+    font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; padding: 11px 22px;
+    border: 1px solid var(--coal); background: transparent;
+    color: var(--fire); cursor: pointer; transition: all .2s; border-radius: 2px;
+  }
+  .btn:hover { background: rgba(245,158,11,.1); border-color: var(--fire); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--fire); color: var(--black); font-weight: 700; border-color: var(--fire); }
+  .btn-primary:hover { background: var(--ember); border-color: var(--ember); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  .divider { height: 1px; background: linear-gradient(90deg,transparent,var(--coal),transparent); margin: 28px 0; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(70px);
+    background: var(--stone); border: 1px solid var(--fire);
+    color: var(--fire); font-family: 'Space Mono', monospace;
+    font-size: 11px; letter-spacing: .08em;
+    padding: 11px 22px; border-radius: 2px;
+    transition: transform .3s; z-index: 999; white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.err { border-color: var(--red); color: var(--red); }
+
+  /* ── LOADING OVERLAY ── */
+  #loader {
+    position: fixed; inset: 0; background: var(--black);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 2000; transition: opacity .5s;
+  }
+  #loader.hidden { opacity: 0; pointer-events: none; }
+  .loader-title { font-family: 'Space Mono', monospace; font-size: 14px; letter-spacing: .3em; color: var(--fire); margin-bottom: 20px; }
+  .loader-bar { width: 200px; height: 2px; background: var(--rock); border-radius: 1px; overflow: hidden; }
+  .loader-fill { height: 100%; background: var(--fire); animation: load 1.5s ease-in-out infinite; }
+  @keyframes load { 0%{width:0%} 50%{width:80%} 100%{width:100%} }
+
+  footer { text-align: center; padding: 36px 20px; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--ash); letter-spacing: .12em; }
+  footer strong { color: var(--coal); }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-title">MODO CAVERNA</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<div id="flame-bar"></div>
+<div id="sync-bar"><div class="sync-dot loading" id="sync-dot"></div><span id="sync-text">conectando...</span></div>
+<div id="toast"></div>
+
+<header>
+  <div class="container">
+    <div class="eyebrow">Protocolo Pessoal de Execução</div>
+    <h1>MODO<br><span>CAVERNA</span></h1>
+    <div class="header-sub">Reduzir o mundo ao essencial. Construir. Repetir.</div>
+    <div id="date-display"></div>
+  </div>
+</header>
+
+<nav>
+  <a href="#missao">Missão</a>
+  <a href="#hoje">Hoje</a>
+  <a href="#metricas">Métricas</a>
+  <a href="#regras">Regras</a>
+  <a href="#revisao">Revisão</a>
+  <a href="#historico">Histórico</a>
+</nav>
+
+<!-- MISSÃO -->
+<section id="missao">
+  <div class="container">
+    <div class="sec-label">// 01 — Missão</div>
+    <h2>Por que o Modo Caverna existe</h2>
+    <div class="mission-card">
+      <div class="mission-text">"Construir ativos digitais que gerem renda previsível e crescente, com disciplina e consistência, até atingir R$&nbsp;10.000 por mês de forma recorrente — até dezembro de 2026."</div>
+    </div>
+    <div class="filter-box">
+      <div class="filter-icon">🔥</div>
+      <div class="filter-text"><strong>O filtro de decisão:</strong> antes de qualquer ação, projeto ou ideia nova — pergunte: <em>"isso aproxima ou afasta meus objetivos?"</em> Se afastar, elimine, adie ou reduza. Sem exceção.</div>
+    </div>
+    <div class="divider"></div>
+    <div class="principle"><div class="p-num">01</div><div class="p-body"><h4>Prioridade absoluta</h4><p>Todos os dias devem mover pelo menos um objetivo importante. Nunca terminar um dia sem progresso mensurável.</p></div></div>
+    <div class="principle"><div class="p-num">02</div><div class="p-body"><h4>Profundidade, não novidade</h4><p>Nenhum projeto novo enquanto nenhum dos atuais atingir R$3k/mês. Compromisso com profundidade.</p></div></div>
+    <div class="principle"><div class="p-num">03</div><div class="p-body"><h4>Produzir mais do que consumir</h4><p>Quem estuda 8h e produz 1h perde para quem produz 6h. O conteúdo que você cria supera o que você consome.</p></div></div>
+    <div class="principle"><div class="p-num">04</div><div class="p-body"><h4>Atenção é o recurso mais escasso</h4><p>Redes sociais, vídeos curtos, ideias aleatórias — tudo compete pela sua atenção. Proteja ativamente.</p></div></div>
+    <div class="principle"><div class="p-num">05</div><div class="p-body"><h4>Consistência supera intensidade</h4><p>Um deslize não é fracasso. Fracasso é transformar uma exceção em abandono. Retome na próxima decisão.</p></div></div>
+  </div>
+</section>
+
+<!-- HOJE -->
+<section id="hoje">
+  <div class="container">
+    <div class="sec-label">// 02 — Checklist Diário</div>
+    <h2>O que você entregou hoje</h2>
+    <div class="ring-wrap">
+      <div class="ring-container">
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle class="ring-bg" cx="55" cy="55" r="48"/>
+          <circle class="ring-fill" id="ring-fill" cx="55" cy="55" r="48"/>
+        </svg>
+        <div class="ring-text">
+          <div class="ring-pct" id="ring-pct">0%</div>
+          <div class="ring-lbl">do dia</div>
+        </div>
+      </div>
+      <div class="ring-meta">
+        <h3 id="ring-msg">Acenda a chama.</h3>
+        <div class="ring-streak" id="streak-txt"></div>
+        <div class="ring-sub">Dados salvos em nuvem automaticamente</div>
+      </div>
+    </div>
+    <div class="checklist" id="checklist"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="resetDay()">↺ Resetar dia</button>
+    </div>
+  </div>
+</section>
+
+<!-- MÉTRICAS -->
+<section id="metricas">
+  <div class="container">
+    <div class="sec-label">// 03 — Métricas Semanais</div>
+    <h2>Os números que importam</h2>
+    <div class="metrics-grid" id="metrics-grid"></div>
+    <div class="btn-row">
+      <button class="btn-primary btn" id="btn-save-metrics" onclick="saveMetrics()">Salvar métricas</button>
+      <button class="btn" onclick="newWeek()">Nova semana</button>
+    </div>
+  </div>
+</section>
+
+<!-- REGRAS -->
+<section id="regras">
+  <div class="container">
+    <div class="sec-label">// 04 — Regras Operacionais</div>
+    <h2>As leis do protocolo</h2>
+    <div class="rule-hard">Nenhum projeto novo enquanto nenhum dos atuais atingir R$3.000/mês de receita recorrente.</div>
+    <div class="rule-hard">Nenhum capital vai para especulação ou trade. Bitcoin já está — mantém. Zero novos riscos até renda estável.</div>
+    <div class="rules-group">
+      <div class="rules-group-title">Prioridade de projetos</div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text"><strong>1º Site Parafusadeira Certa</strong> — foco máximo. SEO, artigos, afiliados.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text"><strong>2º Shopee</strong> — retomar quando as penalidades zerarem. Manter caixa.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text"><strong>3º Site Vida Mais Prática</strong> — construção paralela, sem consumir foco do principal.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text"><strong>TikTok</strong> — apenas se agregar sem desviar energia dos projetos acima.</div></div>
+    </div>
+    <div class="rules-group">
+      <div class="rules-group-title">Trabalho</div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text"><strong>Seg–Sex:</strong> foco máximo. Trabalho profundo sem interrupções.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text"><strong>Sábado:</strong> revisar métricas, corrigir erros, planejar semana seguinte.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text"><strong>Domingo:</strong> descanso consciente. Trabalho estratégico só se houver vontade.</div></div>
+    </div>
+    <div class="rules-group">
+      <div class="rules-group-title">Tecnologia & Atenção</div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text">Redes sociais <strong>apenas para trabalho</strong>. Não para consumo passivo.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text">Notificações desligadas durante blocos de produção.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text">Zero vídeos curtos por entretenimento em dias de semana.</div></div>
+    </div>
+    <div class="rules-group">
+      <div class="rules-group-title">Saúde & Ambiente</div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text">Dormir entre <strong>7 e 9 horas</strong>.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text">Caminhar quando possível. Beber pelo menos <strong>2 litros de água</strong>.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text">Mesa limpa e quarto organizado antes de dormir.</div></div>
+      <div class="rule-item"><div class="rule-arr">→</div><div class="rule-text">Evitar comparação com outros. Seu único concorrente é quem você era ontem.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- REVISÃO -->
+<section id="revisao">
+  <div class="container">
+    <div class="sec-label">// 05 — Revisão Semanal</div>
+    <h2>Todo sábado, responda</h2>
+    <div class="review-grid" id="review-grid"></div>
+    <div class="btn-row">
+      <button class="btn-primary btn" id="btn-save-review" onclick="saveReview()">Salvar revisão</button>
+      <button class="btn" onclick="clearReview()">Limpar respostas</button>
+    </div>
+  </div>
+</section>
+
+<!-- HISTÓRICO -->
+<section id="historico">
+  <div class="container">
+    <div class="sec-label">// 06 — Histórico</div>
+    <h2>Semanas anteriores</h2>
+    <div id="history-list"><div style="color:var(--gray);font-size:13px;">Carregando histórico...</div></div>
+  </div>
+</section>
+
+<footer><div class="container"><strong>MODO CAVERNA</strong> — Protocolo Pessoal • Dados salvos em nuvem</div></footer>
+
+<script>
+// ── CONFIG SUPABASE ────────────────────────────────────────────
+const SUPABASE_URL = 'https://lysdzuoygryvedbtceqf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5c2R6dW95Z3J5dmVkYnRjZXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzE2MzksImV4cCI6MjEwMDMwNzYzOX0.u9V4vXgZYx_aXMXbbdZ5jMVoFv0jhiHuIGRc2UnanX0';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── DADOS ─────────────────────────────────────────────────────
+const CHECKS = [
+  { id:'c1',  title:'Publicou ou avançou um artigo no site Parafusadeira Certa', cat:'Site',     cls:'cat-fire'  },
+  { id:'c2',  title:'Fez SEO técnico, pesquisa de KW ou otimização de artigo',   cat:'Site',     cls:'cat-fire'  },
+  { id:'c3',  title:'Avançou no site Vida Mais Prática',                          cat:'Site 2',   cls:'cat-fire'  },
+  { id:'c4',  title:'Fez algo produtivo na Shopee',                               cat:'Shopee',   cls:'cat-fire'  },
+  { id:'c5',  title:'Bebeu pelo menos 2 litros de água',                          cat:'Saúde',    cls:'cat-green' },
+  { id:'c6',  title:'Dormiu bem (7–9h)',                                           cat:'Saúde',    cls:'cat-green' },
+  { id:'c7',  title:'Caminhou ou se movimentou',                                  cat:'Saúde',    cls:'cat-green' },
+  { id:'c8',  title:'Ambiente organizado ao fim do dia',                          cat:'Ambiente', cls:''          },
+  { id:'c9',  title:'Produziu mais do que consumiu',                              cat:'Foco',     cls:''          },
+  { id:'c10', title:'Zero redes sociais por entretenimento',                      cat:'Foco',     cls:''          },
+];
+
+const METRICS = [
+  { id:'artigos',  label:'Artigos publicados', unit:'esta semana'        },
+  { id:'cliques',  label:'Cliques orgânicos',  unit:'Search Console'     },
+  { id:'posicao',  label:'Posição média',       unit:'Search Console'     },
+  { id:'receita',  label:'Receita Shopee (R$)', unit:'esta semana'        },
+  { id:'vendas',   label:'Vendas no site',      unit:'esta semana'        },
+  { id:'tiktok',   label:'Seguidores TikTok',   unit:'total acumulado'    },
+];
+
+const REVIEW_QS = [
+  { id:'r1', label:'O que produzi esta semana?',              ph:'Liste os entregáveis concretos...' },
+  { id:'r2', label:'O que desperdiçou meu tempo?',            ph:'Seja honesto...' },
+  { id:'r3', label:'Qual hábito falhou? Por quê?',            ph:'Identifique o padrão...' },
+  { id:'r4', label:'Quais foram as maiores vitórias?',        ph:'Celebre o que avançou...' },
+  { id:'r5', label:'O que corrijo na próxima semana?',        ph:'Ação específica, não intenção...' },
+  { id:'r6', label:'Surgiu ideia nova? Ela passa no filtro?', ph:'Aproxima ou afasta os objetivos?' },
+];
+
+// ── ESTADO ────────────────────────────────────────────────────
+let checksState = {};
+let streakData = { sequencia_atual: 0, sequencia_maxima: 0, ultimo_dia_completo: null };
+let metricsHistory = [];
+
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+function weekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const mon = new Date(d.setDate(diff));
+  return mon.toISOString().split('T')[0];
+}
+
+// ── SYNC STATUS ───────────────────────────────────────────────
+function setSyncStatus(status, text) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-text');
+  dot.className = 'sync-dot ' + status;
+  txt.textContent = text;
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function toast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = err ? 'err show' : 'show';
+  setTimeout(() => t.className = '', 2800);
+}
+
+// ── DATE HEADER ───────────────────────────────────────────────
+(function(){
+  const days = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  const months = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const d = new Date();
+  document.getElementById('date-display').textContent =
+    `${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+})();
+
+// ── CARREGAR CHECKS DO DIA ────────────────────────────────────
+async function loadTodayChecks() {
+  const { data, error } = await db
+    .from('checklist_log')
+    .select('item_id')
+    .eq('data', today())
+    .eq('concluido', true);
+  if (error) throw error;
+  checksState = {};
+  (data || []).forEach(r => { checksState[r.item_id] = true; });
+}
+
+// ── TOGGLE CHECK ──────────────────────────────────────────────
+async function toggleCheck(id) {
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (!el) return;
+  el.classList.add('loading-item');
+  setSyncStatus('loading', 'salvando...');
+
+  const isDone = !!checksState[id];
+
+  if (isDone) {
+    const { error } = await db
+      .from('checklist_log')
+      .delete()
+      .eq('data', today())
+      .eq('item_id', id);
+    if (error) { toast('Erro ao salvar', true); setSyncStatus('err', 'erro'); el.classList.remove('loading-item'); return; }
+    delete checksState[id];
+  } else {
+    const { error } = await db
+      .from('checklist_log')
+      .upsert({ data: today(), item_id: id, concluido: true }, { onConflict: 'data,item_id' });
+    if (error) { toast('Erro ao salvar', true); setSyncStatus('err', 'erro'); el.classList.remove('loading-item'); return; }
+    checksState[id] = true;
+  }
+
+  setSyncStatus('ok', 'sincronizado');
+  renderChecklist();
+  await updateStreak();
+}
+
+// ── RENDER CHECKLIST ──────────────────────────────────────────
+function renderChecklist() {
+  const wrap = document.getElementById('checklist');
+  wrap.innerHTML = '';
+  CHECKS.forEach(c => {
+    const done = !!checksState[c.id];
+    const el = document.createElement('div');
+    el.className = 'check-item' + (done ? ' done' : '');
+    el.dataset.id = c.id;
+    el.innerHTML = `
+      <div class="check-box">${done ? '✓' : ''}</div>
+      <div style="flex:1">
+        <div class="check-title">${c.title}</div>
+        <div class="check-cat ${c.cls}">${c.cat}</div>
+      </div>`;
+    el.addEventListener('click', () => toggleCheck(c.id));
+    wrap.appendChild(el);
+  });
+  updateRing();
+}
+
+// ── RING ──────────────────────────────────────────────────────
+function updateRing() {
+  const done = Object.values(checksState).filter(Boolean).length;
+  const total = CHECKS.length;
+  const pct = Math.round((done / total) * 100);
+  const circ = 301.59;
+  document.getElementById('ring-fill').style.strokeDashoffset = circ - (pct / 100) * circ;
+  document.getElementById('ring-pct').textContent = pct + '%';
+
+  const msgs = [[0,'Acenda a chama.'],[20,'Começando...'],[40,'Ganhando ritmo.'],[60,'Mais da metade.'],[80,'Quase lá.'],[100,'Dia completo. 🔥']];
+  let msg = msgs[0][1];
+  msgs.forEach(([t,m]) => { if (pct >= t) msg = m; });
+  document.getElementById('ring-msg').textContent = msg;
+
+  document.getElementById('flame-bar').className = pct >= 60 ? 'strong' : '';
+
+  const strEl = document.getElementById('streak-txt');
+  const s = streakData.sequencia_atual;
+  strEl.textContent = s > 0 ? `🔥 ${s} dia${s>1?'s':''} consecutivo${s>1?'s':''}` : '';
+}
+
+// ── STREAK ────────────────────────────────────────────────────
+async function updateStreak() {
+  const done = Object.values(checksState).filter(Boolean).length;
+  const allDone = done === CHECKS.length;
+  const t = today();
+  const { data } = await db.from('streak').select('*').limit(1).single();
+  if (!data) return;
+
+  let { sequencia_atual, sequencia_maxima, ultimo_dia_completo } = data;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  if (allDone && ultimo_dia_completo !== t) {
+    if (ultimo_dia_completo === yesterday) sequencia_atual++;
+    else sequencia_atual = 1;
+    sequencia_maxima = Math.max(sequencia_maxima, sequencia_atual);
+    ultimo_dia_completo = t;
+    await db.from('streak').update({ sequencia_atual, sequencia_maxima, ultimo_dia_completo, updated_at: new Date().toISOString() }).eq('id', data.id);
+    streakData = { sequencia_atual, sequencia_maxima, ultimo_dia_completo };
+  } else if (!allDone && ultimo_dia_completo === t) {
+    // ainda não completou hoje, não altera
+  }
+  updateRing();
+}
+
+async function resetDay() {
+  if (!confirm('Resetar todos os itens de hoje?')) return;
+  await db.from('checklist_log').delete().eq('data', today());
+  checksState = {};
+  renderChecklist();
+  toast('Dia resetado.');
+}
+
+// ── MÉTRICAS ──────────────────────────────────────────────────
+async function loadMetrics() {
+  const { data } = await db.from('metricas').select('*').eq('semana', weekStart());
+  const vals = {};
+  (data || []).forEach(r => { vals[r.chave] = r.valor; });
+
+  const { data: hist } = await db.from('metricas').select('*').order('semana', { ascending: false });
+  metricsHistory = hist || [];
+
+  renderMetrics(vals);
+}
+
+function renderMetrics(vals = {}) {
+  const grid = document.getElementById('metrics-grid');
+  grid.innerHTML = '';
+  METRICS.forEach(m => {
+    const val = vals[m.id] !== undefined ? vals[m.id] : '';
+    const prevWeeks = metricsHistory.filter(r => r.chave === m.id && r.semana !== weekStart());
+    const prev = prevWeeks.length > 0 ? prevWeeks[0].valor : null;
+    let deltaHtml = '';
+    if (val !== '' && prev !== null) {
+      const diff = parseFloat(val) - parseFloat(prev);
+      const cls = diff >= 0 ? 'delta-up' : 'delta-down';
+      const sign = diff >= 0 ? '+' : '';
+      deltaHtml = `<div class="metric-delta ${cls}">${sign}${diff % 1 === 0 ? diff : diff.toFixed(1)} vs semana anterior</div>`;
+    }
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+    card.innerHTML = `
+      <div class="metric-label">${m.label}</div>
+      <input class="metric-input" id="m_${m.id}" type="number" value="${val}" placeholder="0" min="0" step="any">
+      <div class="metric-unit">${m.unit}</div>
+      ${deltaHtml}`;
+    grid.appendChild(card);
+  });
+}
+
+async function saveMetrics() {
+  const btn = document.getElementById('btn-save-metrics');
+  btn.disabled = true;
+  setSyncStatus('loading', 'salvando...');
+  const week = weekStart();
+  const rows = METRICS.map(m => {
+    const val = parseFloat(document.getElementById('m_' + m.id)?.value || 0) || 0;
+    return { semana: week, chave: m.id, valor: val };
+  });
+  const { error } = await db.from('metricas').upsert(rows, { onConflict: 'semana,chave' });
+  btn.disabled = false;
+  if (error) { toast('Erro ao salvar métricas', true); setSyncStatus('err', 'erro'); return; }
+  setSyncStatus('ok', 'sincronizado');
+  toast('Métricas salvas.');
+  await loadMetrics();
+  await loadHistory();
+}
+
+async function newWeek() {
+  if (!confirm('Limpar métricas para nova semana? Os dados anteriores ficam no histórico.')) return;
+  renderMetrics({});
+  toast('Pronto para nova semana.');
+}
+
+// ── REVISÃO ───────────────────────────────────────────────────
+async function loadReview() {
+  const { data } = await db.from('revisao').select('*').eq('semana', weekStart());
+  const vals = {};
+  (data || []).forEach(r => { vals[r.pergunta_id] = r.resposta; });
+  renderReview(vals);
+}
+
+function renderReview(vals = {}) {
+  const grid = document.getElementById('review-grid');
+  grid.innerHTML = '';
+  REVIEW_QS.forEach(q => {
+    const card = document.createElement('div');
+    card.className = 'review-card';
+    card.innerHTML = `
+      <div class="review-card-label">${q.label}</div>
+      <textarea class="review-textarea" id="${q.id}" placeholder="${q.ph}">${vals[q.id] || ''}</textarea>`;
+    grid.appendChild(card);
+  });
+}
+
+async function saveReview() {
+  const btn = document.getElementById('btn-save-review');
+  btn.disabled = true;
+  setSyncStatus('loading', 'salvando...');
+  const week = weekStart();
+  const rows = REVIEW_QS.map(q => ({
+    semana: week,
+    pergunta_id: q.id,
+    resposta: document.getElementById(q.id)?.value || ''
+  }));
+  const { error } = await db.from('revisao').upsert(rows, { onConflict: 'semana,pergunta_id' });
+  btn.disabled = false;
+  if (error) { toast('Erro ao salvar revisão', true); setSyncStatus('err', 'erro'); return; }
+  setSyncStatus('ok', 'sincronizado');
+  toast('Revisão semanal salva.');
+}
+
+async function clearReview() {
+  if (!confirm('Limpar as respostas da revisão desta semana?')) return;
+  await db.from('revisao').delete().eq('semana', weekStart());
+  renderReview({});
+  toast('Respostas limpas.');
+}
+
+// ── HISTÓRICO ─────────────────────────────────────────────────
+async function loadHistory() {
+  const { data: metHist } = await db.from('metricas').select('*').order('semana', { ascending: false });
+  const { data: revHist } = await db.from('revisao').select('*').order('semana', { ascending: false });
+
+  const weekMap = {};
+  (metHist || []).forEach(r => {
+    if (!weekMap[r.semana]) weekMap[r.semana] = { metrics: {}, review: {} };
+    weekMap[r.semana].metrics[r.chave] = r.valor;
+  });
+  (revHist || []).forEach(r => {
+    if (!weekMap[r.semana]) weekMap[r.semana] = { metrics: {}, review: {} };
+    weekMap[r.semana].review[r.pergunta_id] = r.resposta;
+  });
+
+  const weeks = Object.keys(weekMap).sort().reverse();
+  const list = document.getElementById('history-list');
+
+  if (weeks.length === 0) {
+    list.innerHTML = '<div style="color:var(--gray);font-size:13px;">Nenhum histórico ainda. Os dados das semanas anteriores aparecerão aqui.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  weeks.forEach(week => {
+    const d = new Date(week + 'T12:00:00');
+    const label = `Semana de ${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+    const data = weekMap[week];
+
+    const metricsHtml = METRICS.map(m => {
+      const val = data.metrics[m.id];
+      return val !== undefined
+        ? `<div class="history-metric"><span class="history-metric-key">${m.label}</span><span class="history-metric-val">${val}</span></div>`
+        : '';
+    }).join('');
+
+    const revHtml = REVIEW_QS.map(q => {
+      const ans = data.review[q.id];
+      return ans
+        ? `<div style="margin-top:10px"><div style="font-size:10px;color:var(--gray);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">${q.label}</div><div style="font-size:12px;color:var(--muted);line-height:1.5">${ans}</div></div>`
+        : '';
+    }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'history-week';
+    card.innerHTML = `
+      <div class="history-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="history-week-label">${label}</span>
+        <span style="color:var(--gray);font-size:18px">›</span>
+      </div>
+      <div class="history-body">
+        ${metricsHtml || '<div style="color:var(--gray);font-size:12px;margin-top:10px">Sem métricas registradas.</div>'}
+        ${revHtml}
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+// ── NAV ───────────────────────────────────────────────────────
+function updateNav() {
+  const sections = document.querySelectorAll('section[id]');
+  let current = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
+  document.querySelectorAll('nav a').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+}
+window.addEventListener('scroll', updateNav, { passive: true });
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init() {
+  try {
+    setSyncStatus('loading', 'conectando...');
+
+    const { data: strk } = await db.from('streak').select('*').limit(1).single();
+    if (strk) streakData = strk;
+
+    await loadTodayChecks();
+    renderChecklist();
+
+    await loadMetrics();
+    await loadReview();
+    await loadHistory();
+
+    setSyncStatus('ok', 'sincronizado');
+  } catch(e) {
+    console.error(e);
+    setSyncStatus('err', 'erro de conexão');
+    toast('Erro ao conectar com o banco de dados', true);
+  }
+
+  document.getElementById('loader').classList.add('hidden');
+  updateNav();
+}
+
+init();
+</script>
+</body>
+</html>
