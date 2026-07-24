@@ -321,6 +321,25 @@ input:checked+.tslider::before{transform:translateX(18px);background:var(--fire)
 .timer-manual-inp{background:var(--stone);border:1px solid var(--ash);color:var(--fire);
   font-family:'Space Mono',monospace;font-size:16px;padding:8px 12px;outline:none;width:80px;text-align:center}
 .timer-manual-inp:focus{border-color:var(--fire)}
+.retro-panel{background:var(--stone);border:1px solid var(--ash);border-left:3px solid var(--purple);padding:20px;margin-bottom:20px}
+.retro-title{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--purple);margin-bottom:14px}
+.retro-date-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.retro-date-lbl{font-family:'Space Mono',monospace;font-size:9px;color:var(--gray);letter-spacing:.15em;text-transform:uppercase}
+.retro-date-inp{background:var(--cave);border:1px solid var(--ash);color:var(--fire);
+  font-family:'Space Mono',monospace;font-size:13px;padding:8px 12px;outline:none}
+.retro-date-inp:focus{border-color:var(--purple)}
+.retro-items{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.retro-item{background:var(--cave);border:1px solid var(--rock);padding:12px 14px;display:flex;align-items:center;gap:12px}
+.retro-item-name{font-size:12px;color:var(--light);flex:1}
+.retro-item-cat{font-family:'Space Mono',monospace;font-size:9px;color:var(--gray);text-transform:uppercase;margin-top:2px}
+.retro-counter{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.retro-cbtn{background:var(--rock);border:none;color:var(--muted);width:26px;height:26px;
+  border-radius:2px;font-size:15px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.retro-cbtn:hover{background:var(--ash);color:var(--white)}
+.retro-cval{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--purple);min-width:30px;text-align:center}
+.retro-check{display:flex;align-items:center;gap:10px;cursor:pointer}
+.retro-box{width:18px;height:18px;border:2px solid var(--ash);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .2s;flex-shrink:0}
+.retro-check.done .retro-box{background:var(--green);border-color:var(--green);color:#000}
 footer{text-align:center;padding:30px 20px;font-family:'Space Mono',monospace;font-size:10px;color:var(--ash);letter-spacing:.1em}
 footer strong{color:var(--coal)}
 </style>
@@ -493,6 +512,25 @@ footer strong{color:var(--coal)}
     <div class="brow">
       <button class="btn btn-g" onclick="openModal()" style="font-size:9px;padding:7px 13px">+ Adicionar item</button>
       <button class="btn" onclick="resetDay()">↺ Resetar dia</button>
+    </div>
+
+    <div style="margin-top:28px">
+      <div class="slabel" style="margin-bottom:10px">Lançamento retroativo</div>
+      <div class="retro-panel">
+        <div class="retro-title">📅 Registrar dia anterior</div>
+        <div class="retro-date-row">
+          <span class="retro-date-lbl">Data:</span>
+          <input type="date" class="retro-date-inp" id="retro-date">
+          <button class="btn" onclick="loadRetroData()" style="font-size:9px;padding:7px 13px;border-color:var(--purple);color:var(--purple)">Carregar</button>
+        </div>
+        <div class="retro-items" id="retro-items"></div>
+        <div class="brow" style="margin-top:0">
+          <button class="btn btn-p" onclick="saveRetroData()" id="btn-retro-save" style="display:none;border-color:var(--purple);background:var(--purple)">Salvar dia</button>
+        </div>
+        <div style="font-size:10px;color:var(--gray);font-family:'Space Mono',monospace;margin-top:10px;line-height:1.6">
+          Selecione a data → clique Carregar → registre o que fez → Salvar dia
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -1236,6 +1274,107 @@ async function loadHistory(){
   });
 }
 
+// ── LANÇAMENTO RETROATIVO ─────────────────────────────────────
+let retroState={checks:{},counters:{}};
+let retroDate='';
+
+async function loadRetroData(){
+  const dateInp=document.getElementById('retro-date');
+  retroDate=dateInp.value;
+  if(!retroDate){toast('Selecione uma data.',true);return;}
+  if(retroDate>=today()){toast('Use o registro normal para hoje ou datas futuras.',true);return;}
+
+  sync('spin','carregando...');
+  const{data}=await db.from('checklist_log').select('*').eq('data',retroDate);
+  retroState={checks:{},counters:{}};
+  (data||[]).forEach(r=>{
+    const item=ITEMS.find(i=>i.id===r.item_id);
+    if(!item)return;
+    if(item.type==='check')retroState.checks[r.item_id]=r.concluido;
+    else retroState.counters[r.item_id]=r.valor||0;
+  });
+  sync('ok','carregado');
+  renderRetroItems();
+  document.getElementById('btn-retro-save').style.display='inline-block';
+}
+
+function renderRetroItems(){
+  const wrap=document.getElementById('retro-items');wrap.innerHTML='';
+  // Contadores
+  ITEMS.filter(i=>i.type==='count').forEach(item=>{
+    const val=retroState.counters[item.id]||0;
+    const el=document.createElement('div');el.className='retro-item';
+    el.innerHTML=`
+      <div style="flex:1">
+        <div class="retro-item-name">${item.title}</div>
+        <div class="retro-item-cat">${item.cat}</div>
+      </div>
+      <div class="retro-counter">
+        <button class="retro-cbtn" onclick="changeRetroCounter('${item.id}',-1)">−</button>
+        <div class="retro-cval" id="rv_${item.id}">${val}</div>
+        <button class="retro-cbtn" onclick="changeRetroCounter('${item.id}',1)">+</button>
+        <div style="font-size:10px;color:var(--gray);min-width:40px">${item.unit||''}</div>
+      </div>`;
+    wrap.appendChild(el);
+  });
+  // Checks
+  ITEMS.filter(i=>i.type==='check').forEach(item=>{
+    const done=!!retroState.checks[item.id];
+    const el=document.createElement('div');el.className='retro-item';
+    el.innerHTML=`
+      <div class="retro-check${done?' done':''}" id="rc_${item.id}" onclick="toggleRetroCheck('${item.id}')" style="flex:1;display:flex;gap:12px;align-items:center">
+        <div class="retro-box">${done?'✓':''}</div>
+        <div>
+          <div class="retro-item-name" style="cursor:pointer">${item.title}</div>
+          <div class="retro-item-cat">${item.cat}</div>
+        </div>
+      </div>`;
+    wrap.appendChild(el);
+  });
+}
+
+function changeRetroCounter(id,delta){
+  retroState.counters[id]=Math.max(0,(retroState.counters[id]||0)+delta);
+  const el=document.getElementById('rv_'+id);
+  if(el)el.textContent=retroState.counters[id];
+}
+
+function toggleRetroCheck(id){
+  retroState.checks[id]=!retroState.checks[id];
+  const el=document.getElementById('rc_'+id);
+  if(!el)return;
+  const done=retroState.checks[id];
+  el.className='retro-check'+(done?' done':'');
+  el.querySelector('.retro-box').textContent=done?'✓':'';
+}
+
+async function saveRetroData(){
+  if(!retroDate){toast('Nenhuma data selecionada.',true);return;}
+  const btn=document.getElementById('btn-retro-save');btn.disabled=true;
+  sync('spin','salvando...');
+  try{
+    // Deletar registros existentes para a data
+    await db.from('checklist_log').delete().eq('data',retroDate);
+    // Inserir novos
+    const rows=[];
+    ITEMS.filter(i=>i.type==='count').forEach(item=>{
+      const val=retroState.counters[item.id]||0;
+      if(val>0)rows.push({data:retroDate,item_id:item.id,concluido:true,valor:val});
+    });
+    ITEMS.filter(i=>i.type==='check').forEach(item=>{
+      if(retroState.checks[item.id])rows.push({data:retroDate,item_id:item.id,concluido:true,valor:1});
+    });
+    if(rows.length>0)await db.from('checklist_log').insert(rows);
+    sync('ok','salvo');
+    toast(`Dia ${retroDate} salvo com sucesso.`);
+    // Recarregar gráficos
+    await loadAllLogs();renderBarChart();renderStats();
+    btn.disabled=false;
+  }catch(e){
+    console.error(e);toast('Erro ao salvar.',true);sync('err','erro');btn.disabled=false;
+  }
+}
+
 // ── NAV ───────────────────────────────────────────────────────
 function updateNav(){const secs=document.querySelectorAll('section[id]');let cur='';secs.forEach(s=>{if(window.scrollY>=s.offsetTop-100)cur=s.id;});document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+cur));}
 window.addEventListener('scroll',updateNav,{passive:true});
@@ -1284,6 +1423,10 @@ function renderFrase(){
 // ── INIT ──────────────────────────────────────────────────────
 async function init(){
   renderFrase();
+  // Pré-preencher data retroativa com ontem
+  const ontem=new Date();ontem.setDate(ontem.getDate()-1);
+  const retInp=document.getElementById('retro-date');
+  if(retInp)retInp.value=localDateStr(ontem);
   try{
     sync('spin','conectando...');
     // Criar tabela timer_log se não existir (via upsert seguro)
