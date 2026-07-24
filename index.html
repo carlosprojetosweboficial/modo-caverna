@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MODO CAVERNA</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -807,10 +806,159 @@ footer strong{color:var(--coal)}
 <footer><div class="wrap"><strong>MODO CAVERNA</strong> — 90 Dias • v4 • Dados em nuvem</div></footer>
 
 <script>
-// ── SUPABASE ──────────────────────────────────────────────────
+// ── API REST DIRETA (sem biblioteca) ─────────────────────────
 const SURL='https://lysdzuoygryvedbtceqf.supabase.co';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5c2R6dW95Z3J5dmVkYnRjZXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzE2MzksImV4cCI6MjEwMDMwNzYzOX0.u9V4vXgZYx_aXMXbbdZ5jMVoFv0jhiHuIGRc2UnanX0';
-const db=supabase.createClient(SURL,SKEY);
+
+const HEADERS = {
+  'apikey': SKEY,
+  'Authorization': 'Bearer ' + SKEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
+
+// API simplificada compatível com qualquer navegador
+const db = {
+  from: (table) => ({
+    _table: table,
+    _filters: [],
+    _cols: '*',
+    _limit: null,
+    _order: null,
+    _single: false,
+    _maybe: false,
+
+    select(cols='*') { this._cols=cols; return this; },
+    eq(col,val) { this._filters.push(`${col}=eq.${val}`); return this; },
+    gte(col,val) { this._filters.push(`${col}=gte.${val}`); return this; },
+    lte(col,val) { this._filters.push(`${col}=lte.${val}`); return this; },
+    order(col,{ascending=true}={}) { this._order=`${col}.${ascending?'asc':'desc'}`; return this; },
+    limit(n) { this._limit=n; return this; },
+    single() { this._single=true; this._limit=1; return this; },
+    maybeSingle() { this._maybe=true; this._limit=1; return this; },
+
+    _buildUrl(extra='') {
+      let url=`${SURL}/rest/v1/${this._table}?select=${this._cols}`;
+      this._filters.forEach(f=>{ url+=`&${f}`; });
+      if(this._order) url+=`&order=${this._order}`;
+      if(this._limit) url+=`&limit=${this._limit}`;
+      return url+extra;
+    },
+
+    async _get() {
+      const h={...HEADERS};
+      if(this._single||this._maybe) h['Accept']='application/vnd.pgrst.object+json';
+      const r=await fetch(this._buildUrl(),{headers:h});
+      if(!r.ok){const e=await r.json();return{data:null,error:e};}
+      const data=await r.json();
+      return{data,error:null};
+    },
+
+    async select(cols='*') { this._cols=cols; return this; },
+
+    // Executar select
+    async then(resolve,reject) {
+      try{ resolve(await this._get()); }catch(e){ reject(e); }
+    },
+
+    async delete() {
+      let url=`${SURL}/rest/v1/${this._table}?`;
+      this._filters.forEach((f,i)=>{ url+=( i>0?'&':'')+f; });
+      const r=await fetch(url,{method:'DELETE',headers:HEADERS});
+      if(!r.ok){const e=await r.json();return{error:e};}
+      return{error:null};
+    },
+
+    async insert(rows) {
+      const body=Array.isArray(rows)?rows:[rows];
+      const r=await fetch(`${SURL}/rest/v1/${this._table}`,{
+        method:'POST',headers:HEADERS,body:JSON.stringify(body)
+      });
+      if(!r.ok){const e=await r.json();return{data:null,error:e};}
+      const data=await r.json();
+      return{data,error:null};
+    },
+
+    async upsert(rows,{onConflict}={}) {
+      const body=Array.isArray(rows)?rows:[rows];
+      const h={...HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'};
+      let url=`${SURL}/rest/v1/${this._table}`;
+      if(onConflict) url+=`?on_conflict=${onConflict}`;
+      const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+      if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{data:null,error:e};}
+      const data=await r.json().catch(()=>null);
+      return{data,error:null};
+    },
+
+    async update(obj) {
+      let url=`${SURL}/rest/v1/${this._table}?`;
+      this._filters.forEach((f,i)=>{ url+=(i>0?'&':'')+f; });
+      const r=await fetch(url,{method:'PATCH',headers:HEADERS,body:JSON.stringify(obj)});
+      if(!r.ok){const e=await r.json();return{data:null,error:e};}
+      const data=await r.json().catch(()=>null);
+      return{data,error:null};
+    }
+  })
+};
+
+// Helper para select encadeado
+async function dbSelect(table,cols,filters={},opts={}) {
+  let url=`${SURL}/rest/v1/${table}?select=${cols||'*'}`;
+  Object.entries(filters).forEach(([k,v])=>{ url+=`&${k}=${v}`; });
+  if(opts.order) url+=`&order=${opts.order}`;
+  if(opts.limit) url+=`&limit=${opts.limit}`;
+  const h={...HEADERS};
+  if(opts.single) h['Accept']='application/vnd.pgrst.object+json';
+  const r=await fetch(url,{headers:h});
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{data:null,error:e};}
+  const data=await r.json().catch(()=>null);
+  return{data,error:null};
+}
+
+async function dbDelete(table,filters={}) {
+  let url=`${SURL}/rest/v1/${table}?`;
+  const parts=Object.entries(filters).map(([k,v])=>`${k}=${v}`);
+  url+=parts.join('&');
+  const r=await fetch(url,{method:'DELETE',headers:HEADERS});
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{error:e};}
+  return{error:null};
+}
+
+async function dbInsertMany(table,rows) {
+  const r=await fetch(`${SURL}/rest/v1/${table}`,{
+    method:'POST',headers:{...HEADERS,'Prefer':'return=minimal'},
+    body:JSON.stringify(rows)
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{error:e};}
+  return{error:null};
+}
+
+async function dbUpsert(table,rows,onConflict) {
+  const body=Array.isArray(rows)?rows:[rows];
+  const h={...HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'};
+  let url=`${SURL}/rest/v1/${table}`;
+  if(onConflict) url+=`?on_conflict=${onConflict}`;
+  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{data:null,error:e};}
+  const data=await r.json().catch(()=>null);
+  return{data,error:null};
+}
+
+async function dbSelectRange(table,cols,dateFrom,dateTo) {
+  const url=`${SURL}/rest/v1/${table}?select=${cols}&data=gte.${dateFrom}&data=lte.${dateTo}`;
+  const r=await fetch(url,{headers:HEADERS});
+  if(!r.ok){return{data:null,error:await r.json().catch(()=>({}))};}
+  return{data:await r.json().catch(()=>[]),error:null};
+}
+
+async function dbPatch(table,obj,filters={}) {
+  let url=`${SURL}/rest/v1/${table}?`;
+  const parts=Object.entries(filters).map(([k,v])=>`${k}=${v}`);
+  url+=parts.join('&');
+  const r=await fetch(url,{method:'PATCH',headers:HEADERS,body:JSON.stringify(obj)});
+  if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{error:e};}
+  return{error:null};
+}
 
 // ── ESTADO ────────────────────────────────────────────────────
 let ITEMS=[];         // todos os itens (contador + check)
@@ -894,7 +1042,7 @@ function saveItemsLocal(){localStorage.setItem('mc_items_v4',JSON.stringify(ITEM
 
 // ── LOAD TODAY ────────────────────────────────────────────────
 async function loadTodayData(){
-  const{data}=await db.from('checklist_log').select('item_id,valor').eq('data',today());
+  const{data}=await dbSelect('checklist_log','item_id,valor',{'data':'eq.'+today()});
   checksState={};countersState={};
   (data||[]).forEach(r=>{
     const item=ITEMS.find(i=>i.id===r.item_id);
@@ -909,8 +1057,8 @@ async function toggleCheck(id){
   const el=document.querySelector(`.ci[data-id="${id}"]`);if(!el)return;
   el.classList.add('busy');sync('spin','salvando...');
   const done=!!checksState[id];
-  if(done){await db.from('checklist_log').delete().eq('data',today()).eq('item_id',id);delete checksState[id];}
-  else{await db.from('checklist_log').upsert({data:today(),item_id:id,concluido:true,valor:1},{onConflict:'data,item_id'});checksState[id]=true;}
+  if(done){await dbDelete('checklist_log',{'data':'eq.'+today(),'item_id':'eq.'+id});delete checksState[id];}
+  else{await dbUpsert('checklist_log',{data:today(),item_id:id,concluido:true,valor:1},'data,item_id');checksState[id]=true;}
   sync('ok','sincronizado');renderAll();await updateStreak();
 }
 
@@ -920,8 +1068,8 @@ async function changeCounter(id,delta){
   const next=Math.max(0,cur+delta);
   countersState[id]=next;
   sync('spin','salvando...');
-  if(next===0){await db.from('checklist_log').delete().eq('data',today()).eq('item_id',id);}
-  else{await db.from('checklist_log').upsert({data:today(),item_id:id,concluido:next>0,valor:next},{onConflict:'data,item_id'});}
+  if(next===0){await dbDelete('checklist_log',{'data':'eq.'+today(),'item_id':'eq.'+id});}
+  else{await dbUpsert('checklist_log',{data:today(),item_id:id,concluido:next>0,valor:next},'data,item_id');}
   sync('ok','sincronizado');
   renderAll();await updateStreak();
 }
@@ -1000,14 +1148,14 @@ async function updateStreak(){
   const anyCounter=counters.some(c=>(countersState[c.id]||0)>0);
   const allDone=(checks.length===0||allCheck)&&(counters.length===0||anyCounter);
   const t=today();
-  const{data}=await db.from('streak').select('*').limit(1).single();if(!data)return;
+  const{data}=await dbSelect('streak','*',{},{limit:1,single:true});if(!data)return;
   let{id,sequencia_atual,sequencia_maxima,ultimo_dia_completo}=data;
   const yest=new Date();yest.setDate(yest.getDate()-1);
   const yesterday=localDateStr(yest);
   if(allDone&&ultimo_dia_completo!==t){
     sequencia_atual=ultimo_dia_completo===yesterday?sequencia_atual+1:1;
     sequencia_maxima=Math.max(sequencia_maxima,sequencia_atual);
-    await db.from('streak').update({sequencia_atual,sequencia_maxima,ultimo_dia_completo:t,updated_at:new Date().toISOString()}).eq('id',id);
+    await dbPatch('streak',{sequencia_atual,sequencia_maxima,ultimo_dia_completo:t,updated_at:new Date().toISOString()},{'id':'eq.'+id});
     streakData={sequencia_atual,sequencia_maxima,ultimo_dia_completo:t};
   }
   updateRing();
@@ -1015,7 +1163,7 @@ async function updateStreak(){
 
 async function resetDay(){
   if(!confirm('Resetar todos os registros de hoje?'))return;
-  await db.from('checklist_log').delete().eq('data',today());
+  await dbDelete('checklist_log',{'data':'eq.'+today()});
   checksState={};countersState={};renderAll();toast('Dia resetado.');
 }
 
@@ -1040,7 +1188,7 @@ function confirmAddItem(){
 async function deleteItem(e,id){
   e.stopPropagation();if(!confirm('Remover este item?'))return;
   ITEMS=ITEMS.filter(i=>i.id!==id);saveItemsLocal();
-  await db.from('checklist_log').delete().eq('item_id',id);
+  await dbDelete('checklist_log',{'item_id':'eq.'+id});
   delete checksState[id];delete countersState[id];
   renderAll();toast('Item removido.');
 }
@@ -1051,8 +1199,9 @@ document.getElementById('modal-add').addEventListener('click',e=>{if(e.target===
 async function loadTimerData(){
   // Carrega do Supabase primeiro, fallback para localStorage
   try{
-    const{data}=await db.from('timer_log').select('*').eq('data',today()).maybeSingle();
-    if(data){timerTodayTotal=data.total_ms||0;timerDbId=data.id;}
+    const{data}=await dbSelect('timer_log','*',{'data':'eq.'+today()},{limit:1});
+    const td=Array.isArray(data)?data[0]:data;
+    if(td){timerTodayTotal=td.total_ms||0;timerDbId=td.id;}
     else{
       // fallback: localStorage legado
       const ls=localStorage.getItem('mc_timer_'+today());
@@ -1071,10 +1220,11 @@ async function saveTimerToDb(ms){
   localStorage.setItem('mc_timer_'+today(),total);
   try{
     if(timerDbId){
-      await db.from('timer_log').update({total_ms:total,updated_at:new Date().toISOString()}).eq('id',timerDbId);
+      await dbPatch('timer_log',{total_ms:total,updated_at:new Date().toISOString()},{'id':'eq.'+timerDbId});
     }else{
-      const{data}=await db.from('timer_log').upsert({data:today(),total_ms:total},{onConflict:'data'}).select().single();
-      if(data)timerDbId=data.id;
+      const{data}=await dbUpsert('timer_log',{data:today(),total_ms:total},'data');
+      if(data&&Array.isArray(data)&&data[0])timerDbId=data[0].id;
+      else if(data&&data.id)timerDbId=data.id;
     }
   }catch(e){console.warn('Timer DB save error:',e);}
 }
@@ -1165,7 +1315,7 @@ async function zerarTimer(){
     document.getElementById('timer-display').className='timer-display';
   }
   localStorage.setItem('mc_timer_'+today(),'0');
-  try{await db.from('timer_log').upsert({data:today(),total_ms:0},{onConflict:'data'});}catch(e){}
+  try{await dbUpsert('timer_log',{data:today(),total_ms:0},'data');}catch(e){}
   updateTimerDisplay();loadTimerStats();
   toast('Timer zerado.');
 }
@@ -1195,7 +1345,7 @@ function setChartPeriod(p,btn){
 async function loadAllLogs(){
   const d=new Date();d.setDate(d.getDate()-91);
   const start=localDateStr(d);
-  const{data}=await db.from('checklist_log').select('*').gte('data',start);
+  const{data}=await dbSelect('checklist_log','*',{'data':'gte.'+start});
   allLogs=data||[];
 }
 
@@ -1308,9 +1458,9 @@ function renderHeatmap(byDate,totalItems){
 
 // ── MÉTRICAS ──────────────────────────────────────────────────
 async function loadMetrics(){
-  const{data}=await db.from('metricas').select('*').eq('semana',weekStart());
+  const{data}=await dbSelect('metricas','*',{'semana':'eq.'+weekStart()});
   const vals={};(data||[]).forEach(r=>{vals[r.chave]=r.valor;});
-  const{data:hist}=await db.from('metricas').select('*').order('semana',{ascending:false});
+  const{data:hist}=await dbSelect('metricas','*',{},{order:'semana.desc'});
   metricsHistory=hist||[];renderMetrics(vals);
 }
 
@@ -1330,7 +1480,7 @@ function renderMetrics(vals={}){
 async function saveMetrics(){
   const btn=document.getElementById('btn-sm');btn.disabled=true;sync('spin','salvando...');
   const rows=METRICS.map(m=>({semana:weekStart(),chave:m.id,valor:parseFloat(document.getElementById('m_'+m.id)?.value||0)||0}));
-  const{error}=await db.from('metricas').upsert(rows,{onConflict:'semana,chave'});
+  const{error}=await dbUpsert('metricas',rows,'semana,chave');
   btn.disabled=false;if(error){toast('Erro',true);sync('err','erro');return;}
   sync('ok','sincronizado');toast('Métricas salvas.');await loadMetrics();await loadHistory();
 }
@@ -1368,15 +1518,15 @@ function testNotif(){if(!('Notification' in window)){toast('Não suportado.',tru
 function updateNotifStatus(){const el=document.getElementById('notif-status');const on=document.getElementById('notif-toggle').checked;const t=document.getElementById('notif-time').value;if(!('Notification' in window)){el.textContent='⚠ Navegador não suporta notificações.';return;}el.textContent=on?`✓ Ativo — lembrete todos os dias às ${t}.`:'Ative para receber lembretes diários.';}
 
 // ── REVISÃO ───────────────────────────────────────────────────
-async function loadReview(){const{data}=await db.from('revisao').select('*').eq('semana',weekStart());const vals={};(data||[]).forEach(r=>{vals[r.pergunta_id]=r.resposta;});renderReview(vals);}
+async function loadReview(){const{data}=await dbSelect('revisao','*',{'semana':'eq.'+weekStart()});const vals={};(data||[]).forEach(r=>{vals[r.pergunta_id]=r.resposta;});renderReview(vals);}
 function renderReview(vals={}){const g=document.getElementById('rev-grid');g.innerHTML='';REVIEW_QS.forEach(q=>{const c=document.createElement('div');c.className='rcard';c.innerHTML=`<div class="rcard-lbl">${q.label}</div><textarea class="rtarea" id="${q.id}" placeholder="${q.ph}">${vals[q.id]||''}</textarea>`;g.appendChild(c);});}
-async function saveReview(){const btn=document.getElementById('btn-sr');btn.disabled=true;sync('spin','salvando...');const rows=REVIEW_QS.map(q=>({semana:weekStart(),pergunta_id:q.id,resposta:document.getElementById(q.id)?.value||''}));const{error}=await db.from('revisao').upsert(rows,{onConflict:'semana,pergunta_id'});btn.disabled=false;if(error){toast('Erro',true);sync('err','erro');return;}sync('ok','sincronizado');toast('Revisão salva.');}
-async function clearReview(){if(!confirm('Apagar revisão desta semana?'))return;await db.from('revisao').delete().eq('semana',weekStart());renderReview({});toast('Limpo.');}
+async function saveReview(){const btn=document.getElementById('btn-sr');btn.disabled=true;sync('spin','salvando...');const rows=REVIEW_QS.map(q=>({semana:weekStart(),pergunta_id:q.id,resposta:document.getElementById(q.id)?.value||''}));const{error}=await dbUpsert('revisao',rows,'semana,pergunta_id');btn.disabled=false;if(error){toast('Erro',true);sync('err','erro');return;}sync('ok','sincronizado');toast('Revisão salva.');}
+async function clearReview(){if(!confirm('Apagar revisão desta semana?'))return;await dbDelete('revisao',{'semana':'eq.'+weekStart()});renderReview({});toast('Limpo.');}
 
 // ── HISTÓRICO ─────────────────────────────────────────────────
 async function loadHistory(){
-  const{data:mh}=await db.from('metricas').select('*').order('semana',{ascending:false});
-  const{data:rh}=await db.from('revisao').select('*').order('semana',{ascending:false});
+  const{data:mh}=await dbSelect('metricas','*',{},{order:'semana.desc'});
+  const{data:rh}=await dbSelect('revisao','*',{},{order:'semana.desc'});
   const wm={};
   (mh||[]).forEach(r=>{if(!wm[r.semana])wm[r.semana]={m:{},r:{}};wm[r.semana].m[r.chave]=r.valor;});
   (rh||[]).forEach(r=>{if(!wm[r.semana])wm[r.semana]={m:{},r:{}};wm[r.semana].r[r.pergunta_id]=r.resposta;});
@@ -1404,7 +1554,7 @@ async function loadRetroData(){
   // Permite hoje e datas anteriores
 
   sync('spin','carregando...');
-  const{data,error}=await db.from('checklist_log').select('*').eq('data',retroDate);
+  const{data,error}=await dbSelect('checklist_log','*',{'data':'eq.'+retroDate});
   if(error){toast('Erro ao carregar.',true);sync('err','erro');return;}
   retroState={checks:{},counters:{}};
   (data||[]).forEach(r=>{
@@ -1415,7 +1565,8 @@ async function loadRetroData(){
   });
   // Carregar horas do dia
   try{
-    const{data:tlog}=await db.from('timer_log').select('total_ms').eq('data',retroDate).maybeSingle();
+    const{data:tlogArr}=await dbSelect('timer_log','total_ms',{'data':'eq.'+retroDate},{limit:1});
+    const tlog=Array.isArray(tlogArr)?tlogArr[0]:tlogArr;
     if(tlog&&tlog.total_ms){
       document.getElementById('retro-horas').value=(tlog.total_ms/3600000).toFixed(1);
     }else{document.getElementById('retro-horas').value='';}
@@ -1481,7 +1632,7 @@ async function saveRetroData(){
   sync('spin','salvando...');
   try{
     // 1. Apagar registros existentes da data
-    const{error:delErr}=await db.from('checklist_log').delete().eq('data',retroDate);
+    const{error:delErr}=await dbDelete('checklist_log',{'data':'eq.'+retroDate});
     if(delErr)throw delErr;
 
     // 2. Montar novos registros
@@ -1499,7 +1650,7 @@ async function saveRetroData(){
     // 3. Inserir em lotes de 10 para evitar timeout
     for(let i=0;i<rows.length;i+=10){
       const batch=rows.slice(i,i+10);
-      const{error:insErr}=await db.from('checklist_log').insert(batch);
+      const{error:insErr}=await dbInsertMany('checklist_log',batch);
       if(insErr)throw insErr;
     }
 
@@ -1508,8 +1659,7 @@ async function saveRetroData(){
     const horas=parseFloat(horasVal||0);
     if(!isNaN(horas)&&horas>=0){
       const ms=Math.round(horas*3600000);
-      const{error:timerErr}=await db.from('timer_log')
-        .upsert({data:retroDate,total_ms:ms,updated_at:new Date().toISOString()},{onConflict:'data'});
+      const{error:timerErr}=await dbUpsert('timer_log',{data:retroDate,total_ms:ms,updated_at:new Date().toISOString()},'data');
       if(timerErr)console.warn('Timer upsert:',timerErr);
     }
 
@@ -1612,7 +1762,7 @@ async function atualizarPainelHoras(){
   try{
     const ws=weekStart();const ms_=monthStart();
     const startProto=localStorage.getItem('mc_protocolo_start')||ms_;
-    const{data}=await db.from('timer_log').select('data,total_ms').gte('data',startProto);
+    const{data}=await dbSelect('timer_log','data,total_ms',{'data':'gte.'+startProto});
     let weekMs=0,monthMs=0,totalMs=0;
     (data||[]).forEach(r=>{
       const ms=r.total_ms||0;
@@ -1646,9 +1796,9 @@ async function verificarResumoSemanal(){
     // Logs da semana anterior
     const fimSemAnt=new Date(semAnt);fimSemAnt.setDate(semAnt.getDate()+6);
     const fimStr=localDateStr(fimSemAnt);
-    const{data:logs}=await db.from('checklist_log').select('*').gte('data',semAntStr).lte('data',fimStr);
-    const{data:timer}=await db.from('timer_log').select('total_ms').gte('data',semAntStr).lte('data',fimStr);
-    const{data:mets}=await db.from('metricas').select('chave,valor').eq('semana',semAntStr);
+    const{data:logs}=await dbSelectRange('checklist_log','*',semAntStr,fimStr);
+    const{data:timer}=await dbSelectRange('timer_log','total_ms',semAntStr,fimStr);
+    const{data:mets}=await dbSelect('metricas','chave,valor',{'semana':'eq.'+semAntStr});
 
     // Montar stats
     const totalHoras=fmtHm((timer||[]).reduce((a,r)=>a+(r.total_ms||0),0));
@@ -1806,7 +1956,7 @@ async function init(){
   try{
     sync('spin','conectando...');
     // Criar tabela timer_log se não existir (via upsert seguro)
-    const{data:strk}=await db.from('streak').select('*').limit(1).single();if(strk)streakData=strk;
+    const{data:strk}=await dbSelect('streak','*',{},{limit:1,single:true});if(strk)streakData=strk;
     loadItems();
     await loadTodayData();
     renderAll();
