@@ -694,9 +694,19 @@ const DEFAULT_ITEMS=[
 ];
 
 // ── UTILS ─────────────────────────────────────────────────────
-const today=()=>new Date().toISOString().split('T')[0];
-function weekStart(){const d=new Date(),day=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-day+(day===0?-6:1));return mon.toISOString().split('T')[0];}
-function monthStart(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;}
+function today(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function weekStart(){
+  const d=new Date(),day=d.getDay();
+  const mon=new Date(d);mon.setDate(d.getDate()-day+(day===0?-6:1));
+  return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+}
+function monthStart(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+}
 function fmtMs(ms){const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
 function fmtHm(ms){const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return`${h}h${String(m).padStart(2,'0')}`;}
 function dateStr(d){const o=new Date(d+'T12:00:00');return`${o.getDate().toString().padStart(2,'0')}/${(o.getMonth()+1).toString().padStart(2,'0')}/${o.getFullYear()}`;}
@@ -822,7 +832,8 @@ async function updateStreak(){
   const t=today();
   const{data}=await db.from('streak').select('*').limit(1).single();if(!data)return;
   let{id,sequencia_atual,sequencia_maxima,ultimo_dia_completo}=data;
-  const yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const yest=new Date();yest.setDate(yest.getDate()-1);
+  const yesterday=localDateStr(yest);
   if(allDone&&ultimo_dia_completo!==t){
     sequencia_atual=ultimo_dia_completo===yesterday?sequencia_atual+1:1;
     sequencia_maxima=Math.max(sequencia_maxima,sequencia_atual);
@@ -1025,8 +1036,9 @@ function setChartPeriod(p,btn){
 }
 
 async function loadAllLogs(){
-  const start=new Date(Date.now()-90*86400000).toISOString().split('T')[0];
-  const{data}=await db.from('checklist_log').select('*').gte('data',start).eq('concluido',true);
+  const d=new Date();d.setDate(d.getDate()-91);
+  const start=localDateStr(d);
+  const{data}=await db.from('checklist_log').select('*').gte('data',start);
   allLogs=data||[];
 }
 
@@ -1038,7 +1050,9 @@ function renderBarChart(){
 
   let periods=[];
   if(chartPeriod==='diario'){
-    for(let i=13;i>=0;i--){const d=new Date(Date.now()-i*86400000);const ds=d.toISOString().split('T')[0];
+    for(let i=13;i>=0;i--){
+      const d=new Date();d.setDate(d.getDate()-i);
+      const ds=localDateStr(d);
       const days=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
       periods.push({label:days[d.getDay()],key:ds,pct:byDate[ds]?Math.round(Object.keys(byDate[ds]).length/totalItems*100):0});}
   }else if(chartPeriod==='semanal'){
@@ -1103,20 +1117,27 @@ function renderStats(){
   renderHeatmap(byDate,totalItems);
 }
 
+function localDateStr(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function renderHeatmap(byDate,totalItems){
   const hm=document.getElementById('heatmap');hm.innerHTML='';
   const now=new Date();
-  const start=new Date(now);start.setDate(now.getDate()-90);start.setDate(start.getDate()-start.getDay());
+  const todayStr=today();
+  const start=new Date(now);
+  start.setDate(now.getDate()-90);
+  start.setDate(start.getDate()-start.getDay());
   const cols=Math.ceil(90/7)+2;
   for(let w=0;w<cols;w++){
     const col=document.createElement('div');col.className='hm-col';
     for(let dw=0;dw<7;dw++){
-      const d=new Date(start);d.setDate(start.getDate()+w*7+dw);
-      const ds=d.toISOString().split('T')[0];
+      const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+w*7+dw);
+      const ds=localDateStr(d);
       const cell=document.createElement('div');cell.className='hm-cell';
       if(d>now){cell.style.opacity='0';}else{
         const n=byDate[ds]?Object.keys(byDate[ds]).length:0;
-        if(n>=totalItems)cell.classList.add(ds===today()?'top':'l4');
+        if(n>=totalItems)cell.classList.add(ds===todayStr?'top':'l4');
         else if(n>totalItems*.6)cell.classList.add('l3');
         else if(n>totalItems*.3)cell.classList.add('l2');
         else if(n>0)cell.classList.add('l1');
