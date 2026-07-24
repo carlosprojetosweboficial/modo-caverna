@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teste Banco</title>
+<style>
+body{background:#0a0a0a;color:#eee;font-family:monospace;padding:20px;max-width:600px;margin:0 auto}
+h1{color:#f59e0b;font-size:16px}
+.log{padding:10px;margin:6px 0;border-radius:3px;font-size:13px;word-break:break-all}
+.ok{background:#052e16;border-left:3px solid #22c55e;color:#86efac}
+.err{background:#2d0a0a;border-left:3px solid #ef4444;color:#fca5a5}
+.info{background:#0f172a;border-left:3px solid #3b82f6;color:#93c5fd}
+button{background:#f59e0b;color:#000;border:none;padding:10px 16px;margin:4px;cursor:pointer;font-weight:bold;font-size:13px;border-radius:3px}
+</style>
+</head>
+<body>
+<h1>🔍 Teste direto do banco</h1>
+<button onclick="testar()">Rodar todos os testes</button>
+<button onclick="inserirTeste()">Inserir registro teste</button>
+<button onclick="lerTodos()">Ler todos os registros</button>
+<div id="out"></div>
+<script>
+const URL='https://lysdzuoygryvedbtceqf.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5c2R6dW95Z3J5dmVkYnRjZXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzE2MzksImV4cCI6MjEwMDMwNzYzOX0.u9V4vXgZYx_aXMXbbdZ5jMVoFv0jhiHuIGRc2UnanX0';
+const H={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'};
+
+function log(msg,type='info'){
+  const d=document.createElement('div');
+  d.className='log '+type;
+  d.textContent=msg;
+  document.getElementById('out').prepend(d);
+}
+
+async function req(method,path,body){
+  const opts={method,headers:H};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(URL+path,opts);
+  const txt=await r.text();
+  let data;
+  try{data=JSON.parse(txt);}catch{data=txt;}
+  return{ok:r.ok,status:r.status,data};
+}
+
+async function testar(){
+  document.getElementById('out').innerHTML='';
+  log('Iniciando testes...','info');
+
+  // 1. Select simples
+  try{
+    const r=await req('GET','/rest/v1/streak?select=*&limit=1');
+    if(r.ok) log('✓ SELECT streak: '+JSON.stringify(r.data),'ok');
+    else log('✗ SELECT streak: '+JSON.stringify(r.data),'err');
+  }catch(e){log('✗ SELECT error: '+e.message,'err');}
+
+  // 2. Verificar tabela checklist_log
+  try{
+    const r=await req('GET','/rest/v1/checklist_log?select=data,item_id,valor&limit=5&order=data.desc');
+    if(r.ok) log('✓ checklist_log ('+r.data.length+' registros): '+JSON.stringify(r.data),'ok');
+    else log('✗ checklist_log: '+JSON.stringify(r.data),'err');
+  }catch(e){log('✗ checklist error: '+e.message,'err');}
+
+  // 3. Verificar timer_log
+  try{
+    const r=await req('GET','/rest/v1/timer_log?select=*&limit=3');
+    if(r.ok) log('✓ timer_log ('+r.data.length+'): '+JSON.stringify(r.data),'ok');
+    else log('✗ timer_log: '+JSON.stringify(r.data),'err');
+  }catch(e){log('✗ timer error: '+e.message,'err');}
+
+  // 4. CORS check
+  log('User-Agent: '+navigator.userAgent,'info');
+  log('Online: '+navigator.onLine,'info');
+}
+
+async function inserirTeste(){
+  const hoje=new Date();
+  const data=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+  log('Tentando inserir em: '+data,'info');
+
+  // Delete primeiro
+  await req('DELETE',`/rest/v1/checklist_log?data=eq.${data}&item_id=eq.TESTE`);
+
+  // Insert
+  const r=await req('POST','/rest/v1/checklist_log',
+    [{data,item_id:'TESTE',concluido:true,valor:99}]);
+  if(r.ok) log('✓ INSERT OK: '+JSON.stringify(r.data),'ok');
+  else log('✗ INSERT FALHOU: '+JSON.stringify(r.data),'err');
+
+  // Ler de volta
+  const r2=await req('GET',`/rest/v1/checklist_log?data=eq.${data}&item_id=eq.TESTE`);
+  if(r2.ok&&r2.data.length>0) log('✓ Leitura confirmada: '+JSON.stringify(r2.data),'ok');
+  else log('✗ Dado não encontrado após insert: '+JSON.stringify(r2.data),'err');
+}
+
+async function lerTodos(){
+  const r=await req('GET','/rest/v1/checklist_log?select=*&order=data.desc&limit=20');
+  if(r.ok) log('Todos os registros ('+r.data.length+'): '+JSON.stringify(r.data),'ok');
+  else log('Erro: '+JSON.stringify(r.data),'err');
+}
+</script>
+</body>
+</html>
