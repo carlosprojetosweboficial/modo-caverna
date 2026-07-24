@@ -1401,15 +1401,16 @@ async function loadRetroData(){
   const dateInp=document.getElementById('retro-date');
   retroDate=dateInp.value;
   if(!retroDate){toast('Selecione uma data.',true);return;}
-  if(retroDate>=today()){toast('Use o registro normal para hoje ou datas futuras.',true);return;}
+  // Permite hoje e datas anteriores
 
   sync('spin','carregando...');
-  const{data}=await db.from('checklist_log').select('*').eq('data',retroDate);
+  const{data,error}=await db.from('checklist_log').select('*').eq('data',retroDate);
+  if(error){toast('Erro ao carregar.',true);sync('err','erro');return;}
   retroState={checks:{},counters:{}};
   (data||[]).forEach(r=>{
     const item=ITEMS.find(i=>i.id===r.item_id);
     if(!item)return;
-    if(item.type==='check')retroState.checks[r.item_id]=r.concluido;
+    if(item.type==='check')retroState.checks[r.item_id]=!!r.concluido;
     else retroState.counters[r.item_id]=r.valor||0;
   });
   // Carregar horas do dia
@@ -1479,33 +1480,55 @@ async function saveRetroData(){
   const btn=document.getElementById('btn-retro-save');btn.disabled=true;
   sync('spin','salvando...');
   try{
-    // Checklist
-    await db.from('checklist_log').delete().eq('data',retroDate);
+    // 1. Apagar registros existentes da data
+    const{error:delErr}=await db.from('checklist_log').delete().eq('data',retroDate);
+    if(delErr)throw delErr;
+
+    // 2. Montar novos registros
     const rows=[];
     ITEMS.filter(i=>i.type==='count').forEach(item=>{
       const val=retroState.counters[item.id]||0;
-      if(val>0)rows.push({data:retroDate,item_id:item.id,concluido:true,valor:val});
+      // Salvar mesmo zero para registrar que o dia foi lançado
+      rows.push({data:retroDate,item_id:item.id,concluido:val>0,valor:val});
     });
     ITEMS.filter(i=>i.type==='check').forEach(item=>{
-      if(retroState.checks[item.id])rows.push({data:retroDate,item_id:item.id,concluido:true,valor:1});
+      const done=!!retroState.checks[item.id];
+      rows.push({data:retroDate,item_id:item.id,concluido:done,valor:done?1:0});
     });
-    if(rows.length>0)await db.from('checklist_log').insert(rows);
 
-    // Horas trabalhadas
-    const horas=parseFloat(document.getElementById('retro-horas').value||0);
-    if(horas>0){
-      const ms=Math.round(horas*3600000);
-      await db.from('timer_log').upsert({data:retroDate,total_ms:ms},{onConflict:'data'});
+    // 3. Inserir em lotes de 10 para evitar timeout
+    for(let i=0;i<rows.length;i+=10){
+      const batch=rows.slice(i,i+10);
+      const{error:insErr}=await db.from('checklist_log').insert(batch);
+      if(insErr)throw insErr;
     }
 
-    sync('ok','salvo');
-    toast(`Dia ${retroDate} salvo com sucesso.`);
+    // 4. Salvar horas
+    const horasVal=document.getElementById('retro-horas').value;
+    const horas=parseFloat(horasVal||0);
+    if(!isNaN(horas)&&horas>=0){
+      const ms=Math.round(horas*3600000);
+      const{error:timerErr}=await db.from('timer_log')
+        .upsert({data:retroDate,total_ms:ms,updated_at:new Date().toISOString()},{onConflict:'data'});
+      if(timerErr)console.warn('Timer upsert:',timerErr);
+    }
+
+    sync('ok','sincronizado');
+    toast(`✓ Dia ${retroDate} salvo no banco.`);
     document.getElementById('retro-horas').value='';
-    await loadAllLogs();renderBarChart();renderStats();
+
+    // 5. Recarregar gráficos
+    await loadAllLogs();
+    renderBarChart();
+    renderStats();
     await atualizarPainelHoras();
     btn.disabled=false;
+
   }catch(e){
-    console.error(e);toast('Erro ao salvar.',true);sync('err','erro');btn.disabled=false;
+    console.error('saveRetroData error:',e);
+    toast('Erro: '+( e.message||JSON.stringify(e)),true);
+    sync('err','erro');
+    btn.disabled=false;
   }
 }
 
