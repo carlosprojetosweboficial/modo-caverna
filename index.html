@@ -311,6 +311,16 @@ input:checked+.tslider::before{transform:translateX(18px);background:var(--fire)
 .sched-lbl{font-size:11px;color:var(--muted);margin-top:4px}
 .sched-note{font-size:12px;color:var(--light);margin-top:6px}
 
+.frase-do-dia{background:var(--cave);border:1px solid var(--rock);border-left:3px solid var(--coal);
+  padding:20px 24px;margin-bottom:0;margin-top:24px}
+.frase-txt{font-size:15px;color:var(--light);line-height:1.6;font-style:italic}
+.frase-autor{font-family:'Space Mono',monospace;font-size:10px;color:var(--coal);margin-top:8px;letter-spacing:.1em}
+.timer-manual{margin-top:16px;padding-top:16px;border-top:1px solid var(--rock)}
+.timer-manual-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.timer-manual-lbl{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray)}
+.timer-manual-inp{background:var(--stone);border:1px solid var(--ash);color:var(--fire);
+  font-family:'Space Mono',monospace;font-size:16px;padding:8px 12px;outline:none;width:80px;text-align:center}
+.timer-manual-inp:focus{border-color:var(--fire)}
 footer{text-align:center;padding:30px 20px;font-family:'Space Mono',monospace;font-size:10px;color:var(--ash);letter-spacing:.1em}
 footer strong{color:var(--coal)}
 </style>
@@ -342,7 +352,6 @@ footer strong{color:var(--coal)}
       <select class="modal-sel" id="new-cat">
         <option value="Site|fire">Site</option>
         <option value="Shopee|fire">Shopee</option>
-        <option value="TikTok|blu">TikTok</option>
         <option value="Saúde|grn">Saúde</option>
         <option value="Foco|">Foco</option>
         <option value="Ambiente|">Ambiente</option>
@@ -366,6 +375,10 @@ footer strong{color:var(--coal)}
     <h1>MODO<br><span>CAVERNA</span></h1>
     <div class="hsub">Reduzir o mundo ao essencial. Construir. Repetir.</div>
     <div id="date-el"></div>
+    <div class="frase-do-dia" id="frase-wrap" style="max-width:600px;margin:20px auto 0">
+      <div class="frase-txt" id="frase-txt"></div>
+      <div class="frase-autor" id="frase-autor"></div>
+    </div>
   </div>
 </header>
 
@@ -401,7 +414,6 @@ footer strong{color:var(--coal)}
       <div class="sched-card"><div class="sched-time">05:15</div><div class="sched-lbl">Treino em casa</div><div class="sched-note">Flexão, agachamento, prancha. ~20 min.</div></div>
       <div class="sched-card"><div class="sched-time">06:00</div><div class="sched-lbl">Manhã — Site</div><div class="sched-note">2 artigos Parafusadeira Certa + 1 Vida Mais Prática.</div></div>
       <div class="sched-card"><div class="sched-time">13:00</div><div class="sched-lbl">Tarde — Shopee</div><div class="sched-note">10 vídeos: 5 autorais + 5 do anúncio do produtor.</div></div>
-      <div class="sched-card"><div class="sched-time">17:00</div><div class="sched-lbl">TikTok</div><div class="sched-note">3 vídeos de IA. Meta: 1.000 seguidores.</div></div>
       <div class="sched-card"><div class="sched-time">21:30</div><div class="sched-lbl">Encerrar telas</div><div class="sched-note">Sem estimulo visual. Dormir ~22h. Acordar 05h.</div></div>
     </div>
 
@@ -431,6 +443,18 @@ footer strong{color:var(--coal)}
         <div class="tstat"><div class="tstat-val" id="t-hoje">0h00</div><div class="tstat-lbl">hoje</div></div>
         <div class="tstat"><div class="tstat-val" id="t-semana">0h00</div><div class="tstat-lbl">esta semana</div></div>
         <div class="tstat"><div class="tstat-val" id="t-mes">0h00</div><div class="tstat-lbl">este mês</div></div>
+      </div>
+      <div class="timer-manual">
+        <div class="timer-manual-row">
+          <span class="timer-manual-lbl">Lançar horas manualmente:</span>
+          <input class="timer-manual-inp" type="number" id="manual-horas" placeholder="0" min="0" max="24" step="0.5">
+          <span class="timer-manual-lbl">horas</span>
+          <button class="btn btn-g" onclick="salvarHorasManual()" style="font-size:9px;padding:7px 13px">Salvar</button>
+          <button class="btn btn-r" onclick="zerarTimer()" style="font-size:9px;padding:7px 13px">Zerar dia</button>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-family:'Space Mono',monospace;font-size:9px;color:var(--gray)">
+          Use para corrigir horas se o cronômetro foi interrompido inesperadamente
+        </div>
       </div>
     </div>
   </div>
@@ -569,7 +593,7 @@ footer strong{color:var(--coal)}
       <div class="ri"><div class="ra">1º</div><div class="rt"><strong>Site Parafusadeira Certa</strong> — foco máximo. 2 artigos/dia com IA.</div></div>
       <div class="ri"><div class="ra">2º</div><div class="rt"><strong>Shopee Vídeos</strong> — 10 vídeos/dia. 5 autorais + 5 do anúncio do produtor.</div></div>
       <div class="ri"><div class="ra">3º</div><div class="rt"><strong>Site Vida Mais Prática</strong> — 1 artigo/dia em paralelo.</div></div>
-      <div class="ri"><div class="ra">4º</div><div class="rt"><strong>TikTok</strong> — 3 vídeos IA/dia até atingir 1.000 seguidores e desbloquear o Shop.</div></div>
+      <div class="ri"><div class="ra">4º</div><div class="rt"><strong>TikTok</strong> — fora da estratégia principal por ora. Retomar apenas quando os 3 projetos acima estiverem estabilizados.</div></div>
     </div>
     <div class="rg">
       <div class="rgt">Rotina</div>
@@ -632,20 +656,20 @@ let newItemType='count';
 let timerRunning=false;
 let timerPaused=false;
 let timerStart_ts=null;
-let timerAccum=0; // ms acumulados hoje
+let timerAccum=0;
 let timerInterval=null;
-let timerTodayTotal=0; // ms finalizados hoje (sem sessão ativa)
+let timerAutoSaveInterval=null;
+let timerTodayTotal=0; // ms salvos no banco hoje
+let timerDbId=null; // id do registro no banco para upsert
 
 const METRICS=[
   {id:'artigos_pc',label:'Artigos Parafusadeira Certa',unit:'esta semana'},
   {id:'artigos_vmp',label:'Artigos Vida Mais Prática',unit:'esta semana'},
   {id:'videos_shopee',label:'Vídeos Shopee',unit:'esta semana'},
-  {id:'videos_tiktok',label:'Vídeos TikTok',unit:'esta semana'},
   {id:'cliques',label:'Cliques orgânicos',unit:'Search Console'},
   {id:'posicao',label:'Posição média',unit:'Search Console'},
   {id:'receita',label:'Receita Shopee (R$)',unit:'esta semana'},
   {id:'vendas',label:'Vendas no site',unit:'esta semana'},
-  {id:'tiktok_seg',label:'Seguidores TikTok',unit:'acumulado'},
 ];
 
 const REVIEW_QS=[
@@ -661,7 +685,6 @@ const DEFAULT_ITEMS=[
   {id:'p1',type:'count',title:'Artigos — Parafusadeira Certa',cat:'Site',cls:'fire',unit:'artigos'},
   {id:'p2',type:'count',title:'Artigos — Vida Mais Prática',cat:'Site',cls:'fire',unit:'artigos'},
   {id:'p3',type:'count',title:'Vídeos — Shopee',cat:'Shopee',cls:'fire',unit:'vídeos'},
-  {id:'p4',type:'count',title:'Vídeos — TikTok',cat:'TikTok',cls:'blu',unit:'vídeos'},
   {id:'c1',type:'check',title:'Treino em casa (flexão, agachamento, prancha)',cat:'Saúde',cls:'grn'},
   {id:'c2',type:'check',title:'Bebeu pelo menos 2L de água',cat:'Saúde',cls:'grn'},
   {id:'c3',type:'check',title:'Dormiu bem (7h)',cat:'Saúde',cls:'grn'},
@@ -844,22 +867,57 @@ document.getElementById('new-title').addEventListener('keydown',e=>{if(e.key==='
 document.getElementById('modal-add').addEventListener('click',e=>{if(e.target===document.getElementById('modal-add'))closeModal();});
 
 // ── TIMER ─────────────────────────────────────────────────────
-function loadTimerData(){
-  const saved=localStorage.getItem('mc_timer_'+today());
-  timerTodayTotal=saved?parseInt(saved):0;
+async function loadTimerData(){
+  // Carrega do Supabase primeiro, fallback para localStorage
+  try{
+    const{data}=await db.from('timer_log').select('*').eq('data',today()).maybeSingle();
+    if(data){timerTodayTotal=data.total_ms||0;timerDbId=data.id;}
+    else{
+      // fallback: localStorage legado
+      const ls=localStorage.getItem('mc_timer_'+today());
+      timerTodayTotal=ls?parseInt(ls):0;timerDbId=null;
+    }
+  }catch(e){
+    const ls=localStorage.getItem('mc_timer_'+today());
+    timerTodayTotal=ls?parseInt(ls):0;
+  }
   timerAccum=0;timerRunning=false;timerPaused=false;
   updateTimerDisplay();loadTimerStats();
+}
+
+async function saveTimerToDb(ms){
+  const total=timerTodayTotal+ms;
+  localStorage.setItem('mc_timer_'+today(),total);
+  try{
+    if(timerDbId){
+      await db.from('timer_log').update({total_ms:total,updated_at:new Date().toISOString()}).eq('id',timerDbId);
+    }else{
+      const{data}=await db.from('timer_log').upsert({data:today(),total_ms:total},{onConflict:'data'}).select().single();
+      if(data)timerDbId=data.id;
+    }
+  }catch(e){console.warn('Timer DB save error:',e);}
 }
 
 function timerStart(){
   if(timerRunning)return;
   timerStart_ts=Date.now();timerRunning=true;timerPaused=false;
   timerInterval=setInterval(()=>{updateTimerDisplay();},1000);
+  // Autosave a cada 60 minutos
+  timerAutoSaveInterval=setInterval(async()=>{
+    if(timerRunning&&!timerPaused){
+      const sessionMs=Date.now()-timerStart_ts+timerAccum;
+      await saveTimerToDb(sessionMs);
+      timerTodayTotal+=sessionMs;
+      timerAccum=0;timerStart_ts=Date.now();
+      toast('Timer autosalvo automaticamente.');
+      loadTimerStats();
+    }
+  },3600000);
   document.getElementById('btn-start').style.display='none';
   document.getElementById('btn-pause').style.display='inline-block';
   document.getElementById('btn-stop').style.display='inline-block';
   document.getElementById('timer-display').className='timer-display running';
-  document.getElementById('timer-status').textContent='Sessão em andamento...';
+  document.getElementById('timer-status').textContent='Sessão em andamento... (autosalva a cada 1h)';
 }
 
 function timerPause(){
@@ -883,13 +941,13 @@ function timerResume(){
   document.getElementById('timer-status').textContent='Sessão em andamento...';
 }
 
-function timerStop(){
+async function timerStop(){
   if(!confirm('Finalizar a sessão de trabalho de hoje?'))return;
   const sessionMs=timerPaused?timerAccum:(timerAccum+(timerStart_ts?Date.now()-timerStart_ts:0));
+  clearInterval(timerInterval);clearInterval(timerAutoSaveInterval);
+  await saveTimerToDb(sessionMs);
   timerTodayTotal+=sessionMs;
   timerAccum=0;timerStart_ts=null;timerRunning=false;timerPaused=false;
-  clearInterval(timerInterval);
-  localStorage.setItem('mc_timer_'+today(),timerTodayTotal);
   document.getElementById('btn-start').style.display='inline-block';
   document.getElementById('btn-pause').style.display='none';
   document.getElementById('btn-resume').style.display='none';
@@ -898,7 +956,37 @@ function timerStop(){
   document.getElementById('timer-display').textContent=fmtMs(timerTodayTotal);
   document.getElementById('timer-status').textContent=`Sessão finalizada. Total hoje: ${fmtHm(timerTodayTotal)}`;
   loadTimerStats();
-  toast('Sessão salva: '+fmtHm(timerTodayTotal));
+  toast('Sessão salva no banco: '+fmtHm(timerTodayTotal));
+}
+
+async function salvarHorasManual(){
+  const horas=parseFloat(document.getElementById('manual-horas').value||0);
+  if(isNaN(horas)||horas<0){toast('Valor inválido.',true);return;}
+  const ms=Math.round(horas*3600000);
+  timerTodayTotal=ms;
+  timerAccum=0;
+  await saveTimerToDb(0);
+  document.getElementById('manual-horas').value='';
+  updateTimerDisplay();loadTimerStats();
+  toast(`${horas}h lançadas manualmente.`);
+}
+
+async function zerarTimer(){
+  if(!confirm('Zerar o timer de hoje?'))return;
+  timerTodayTotal=0;timerAccum=0;timerStart_ts=null;
+  if(timerRunning||timerPaused){
+    clearInterval(timerInterval);clearInterval(timerAutoSaveInterval);
+    timerRunning=false;timerPaused=false;
+    document.getElementById('btn-start').style.display='inline-block';
+    document.getElementById('btn-pause').style.display='none';
+    document.getElementById('btn-resume').style.display='none';
+    document.getElementById('btn-stop').style.display='none';
+    document.getElementById('timer-display').className='timer-display';
+  }
+  localStorage.setItem('mc_timer_'+today(),'0');
+  try{await db.from('timer_log').upsert({data:today(),total_ms:0},{onConflict:'data'});}catch(e){}
+  updateTimerDisplay();loadTimerStats();
+  toast('Timer zerado.');
 }
 
 function updateTimerDisplay(){
@@ -907,18 +995,24 @@ function updateTimerDisplay(){
   document.getElementById('timer-display').textContent=fmtMs(total);
 }
 
-function loadTimerStats(){
-  // Hoje
-  document.getElementById('t-hoje').textContent=fmtHm(timerTodayTotal);
-  // Semana
-  const ws=weekStart();let weekMs=0;
-  for(let i=0;i<7;i++){const d=new Date(ws+'T12:00:00');d.setDate(d.getDate()+i);const k='mc_timer_'+d.toISOString().split('T')[0];weekMs+=parseInt(localStorage.getItem(k)||0);}
-  document.getElementById('t-semana').textContent=fmtHm(weekMs);
-  // Mês
-  const ms=monthStart();let monthMs=0;
-  const now=new Date();
-  for(let i=0;i<31;i++){const d=new Date(ms+'T12:00:00');d.setDate(d.getDate()+i);if(d>now)break;const k='mc_timer_'+d.toISOString().split('T')[0];monthMs+=parseInt(localStorage.getItem(k)||0);}
-  document.getElementById('t-mes').textContent=fmtHm(monthMs);
+async function loadTimerStats(){
+  document.getElementById('t-hoje').textContent=fmtHm(timerTodayTotal+(timerRunning&&!timerPaused&&timerStart_ts?Date.now()-timerStart_ts+timerAccum:timerAccum));
+  try{
+    const ws=weekStart();const ms_=monthStart();
+    const{data}=await db.from('timer_log').select('data,total_ms').gte('data',ms_);
+    let weekMs=0,monthMs=0;
+    (data||[]).forEach(r=>{
+      monthMs+=r.total_ms||0;
+      if(r.data>=ws)weekMs+=r.total_ms||0;
+    });
+    document.getElementById('t-semana').textContent=fmtHm(weekMs);
+    document.getElementById('t-mes').textContent=fmtHm(monthMs);
+  }catch(e){
+    // fallback localStorage
+    const ws=weekStart();let weekMs=0;
+    for(let i=0;i<7;i++){const d=new Date(ws+'T12:00:00');d.setDate(d.getDate()+i);weekMs+=parseInt(localStorage.getItem('mc_timer_'+d.toISOString().split('T')[0])||0);}
+    document.getElementById('t-semana').textContent=fmtHm(weekMs);
+  }
 }
 
 // ── GRÁFICO ───────────────────────────────────────────────────
@@ -1125,15 +1219,58 @@ async function loadHistory(){
 function updateNav(){const secs=document.querySelectorAll('section[id]');let cur='';secs.forEach(s=>{if(window.scrollY>=s.offsetTop-100)cur=s.id;});document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+cur));}
 window.addEventListener('scroll',updateNav,{passive:true});
 
+// ── FRASES DO DIA ─────────────────────────────────────────────
+const FRASES=[
+  {txt:"Não desperdices o resto da tua vida em pensamentos sobre outras pessoas. Olha para dentro.",autor:"Marco Aurélio"},
+  {txt:"Primeiro diz a ti mesmo o que queres ser; e então faz o que tens de fazer.",autor:"Epicteto"},
+  {txt:"Não são as coisas que nos perturbam, mas os julgamentos que fazemos sobre elas.",autor:"Epicteto"},
+  {txt:"O obstáculo é o caminho.",autor:"Marco Aurélio"},
+  {txt:"Nunca é tarde para ser o que você poderia ter sido.",autor:"George Eliot"},
+  {txt:"A disciplina é a ponte entre metas e realizações.",autor:"Jim Rohn"},
+  {txt:"O sucesso é a soma de pequenos esforços repetidos dia após dia.",autor:"Robert Collier"},
+  {txt:"Sofremos mais na imaginação do que na realidade.",autor:"Sêneca"},
+  {txt:"Não esperes pelos eventos. Cria-os.",autor:"Marco Aurélio"},
+  {txt:"Cada manhã recomeçamos a vida.",autor:"Marcus Aurelius"},
+  {txt:"A única forma de fazer um grande trabalho é amar o que se faz.",autor:"Steve Jobs"},
+  {txt:"Trabalha em silêncio. Deixa o sucesso fazer barulho.",autor:"Frank Ocean"},
+  {txt:"Aquele que não tem metas não corre risco de atingi-las.",autor:"Sun Tzu"},
+  {txt:"O tempo é limitado. Não o desperdices vivendo a vida de outra pessoa.",autor:"Steve Jobs"},
+  {txt:"Executa. A motivação vem depois, não antes.",autor:"Mark Manson"},
+  {txt:"A autodisciplina começa com o domínio dos teus pensamentos.",autor:"Napoleon Hill"},
+  {txt:"Fazes o que é necessário ou o que é conveniente?",autor:"Epicteto"},
+  {txt:"Um homem que domina a si mesmo é maior do que um que conquista uma cidade.",autor:"Provérbio"},
+  {txt:"O segredo de avançar é começar.",autor:"Mark Twain"},
+  {txt:"Não contes os dias. Faz os dias contarem.",autor:"Muhammad Ali"},
+  {txt:"A riqueza que importa não é a que se acumula, mas a que se constrói com propósito.",autor:"Sêneca"},
+  {txt:"Não fales do que vais fazer. Mostra.",autor:"Epicteto"},
+  {txt:"Uma pequena ação diária vale mais do que mil planos.",autor:"Jean-Paul Sartre"},
+  {txt:"A consistência bate o talento quando o talento não é consistente.",autor:"Anônimo"},
+  {txt:"Cada dia é uma oportunidade de ser melhor do que ontem.",autor:"Anônimo"},
+  {txt:"A dor do esforço é temporária. O arrependimento de não tentar é permanente.",autor:"Anônimo"},
+  {txt:"Não são as circunstâncias que formam o homem, mas o homem que forma as circunstâncias.",autor:"Tolstói"},
+  {txt:"Tudo que podes fazer, ou sonhas que podes, começa. A ousadia tem genialidade, poder e magia.",autor:"Goethe"},
+  {txt:"A fortuna favorece os audaciosos.",autor:"Virgílio"},
+  {txt:"Sê o arquiteto do teu próprio destino.",autor:"Epicteto"},
+];
+
+function renderFrase(){
+  const idx=Math.floor(Date.now()/86400000)%FRASES.length;
+  const f=FRASES[idx];
+  document.getElementById('frase-txt').textContent='"'+f.txt+'"';
+  document.getElementById('frase-autor').textContent='— '+f.autor;
+}
+
 // ── INIT ──────────────────────────────────────────────────────
 async function init(){
+  renderFrase();
   try{
     sync('spin','conectando...');
+    // Criar tabela timer_log se não existir (via upsert seguro)
     const{data:strk}=await db.from('streak').select('*').limit(1).single();if(strk)streakData=strk;
     loadItems();
     await loadTodayData();
     renderAll();
-    loadTimerData();
+    await loadTimerData();
     await loadAllLogs();
     renderBarChart();
     renderStats();
