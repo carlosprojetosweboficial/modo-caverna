@@ -340,6 +340,69 @@ input:checked+.tslider::before{transform:translateX(18px);background:var(--fire)
 .retro-check{display:flex;align-items:center;gap:10px;cursor:pointer}
 .retro-box{width:18px;height:18px;border:2px solid var(--ash);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .2s;flex-shrink:0}
 .retro-check.done .retro-box{background:var(--green);border-color:var(--green);color:#000}
+/* ── CONTADOR DIAS ── */
+.day-counter{display:flex;align-items:center;gap:20px;background:var(--cave);border:1px solid var(--rock);
+  border-top:3px solid var(--fire);padding:20px 24px;margin-bottom:20px;flex-wrap:wrap}
+.dc-num{font-family:'Space Mono',monospace;font-size:48px;font-weight:700;color:var(--fire);line-height:1;flex-shrink:0}
+.dc-info{flex:1;min-width:140px}
+.dc-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--gray);margin-bottom:6px}
+.dc-bar-wrap{height:4px;background:var(--rock);border-radius:2px;overflow:hidden;margin-top:8px}
+.dc-bar{height:100%;background:linear-gradient(90deg,var(--coal),var(--fire));border-radius:2px;transition:width 1s ease}
+.dc-sub{font-size:11px;color:var(--muted);margin-top:5px;font-family:'Space Mono',monospace}
+
+/* ── META HORAS ── */
+.hours-goal-wrap{background:var(--cave);border:1px solid var(--rock);padding:18px;margin-top:16px}
+.hg-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.hg-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--gray)}
+.hg-val{font-family:'Space Mono',monospace;font-size:13px;color:var(--fire)}
+.hg-bar-wrap{height:6px;background:var(--rock);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.hg-bar{height:100%;border-radius:3px;transition:width .8s ease}
+.hg-bar.ok{background:var(--green)}.hg-bar.mid{background:var(--fire)}.hg-bar.low{background:var(--red)}
+.hg-sub{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace}
+.hg-set-row{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.hg-set-inp{background:var(--stone);border:1px solid var(--ash);color:var(--fire);
+  font-family:'Space Mono',monospace;font-size:14px;padding:7px 10px;outline:none;width:70px;text-align:center}
+.hg-set-inp:focus{border-color:var(--fire)}
+.hg-set-lbl{font-size:11px;color:var(--gray);font-family:'Space Mono',monospace}
+
+/* ── PAINEL HORAS ── */
+.hours-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;margin-bottom:20px}
+.hp-card{background:var(--cave);border:1px solid var(--rock);padding:16px;text-align:center}
+.hp-val{font-family:'Space Mono',monospace;font-size:26px;font-weight:700;color:var(--fire)}
+.hp-lbl{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:.25em;text-transform:uppercase;color:var(--gray);margin-top:5px}
+.hp-sub{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ── RESUMO SEMANAL ── */
+.weekly-summary{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:800;
+  display:none;align-items:center;justify-content:center;padding:20px}
+.weekly-summary.open{display:flex}
+.ws-card{background:var(--stone);border:1px solid var(--ash);border-top:3px solid var(--fire);
+  padding:32px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto}
+.ws-title{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--fire);margin-bottom:6px}
+.ws-week{font-size:20px;font-weight:700;color:var(--white);margin-bottom:24px}
+.ws-stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--rock)}
+.ws-stat:last-child{border-bottom:none}
+.ws-stat-label{font-size:13px;color:var(--muted)}
+.ws-stat-val{font-family:'Space Mono',monospace;font-size:14px;color:var(--fire);font-weight:700}
+.ws-close{margin-top:20px;width:100%}
+
+/* ── MODO FOCO ── */
+#foco-overlay{position:fixed;inset:0;background:var(--black);z-index:900;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:24px}
+#foco-overlay.open{display:flex}
+.foco-timer{font-family:'Space Mono',monospace;font-size:clamp(48px,15vw,100px);font-weight:700;
+  color:var(--green);text-shadow:0 0 40px rgba(34,197,94,.3);letter-spacing:.05em}
+.foco-timer.paused{color:var(--muted)}
+.foco-progress{width:min(400px,80vw);height:4px;background:var(--rock);border-radius:2px;overflow:hidden}
+.foco-bar{height:100%;background:var(--green);border-radius:2px;transition:width .5s}
+.foco-itens{display:flex;flex-direction:column;gap:6px;width:min(400px,80vw);margin-top:8px}
+.foco-item{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--gray);font-family:'Space Mono',monospace}
+.foco-item.done{color:var(--green)}
+.foco-item-dot{width:6px;height:6px;border-radius:50%;background:var(--ash);flex-shrink:0}
+.foco-item.done .foco-item-dot{background:var(--green)}
+.foco-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.foco-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--gray);text-transform:uppercase}
+
 footer{text-align:center;padding:30px 20px;font-family:'Space Mono',monospace;font-size:10px;color:var(--ash);letter-spacing:.1em}
 footer strong{color:var(--coal)}
 </style>
@@ -411,7 +474,49 @@ footer strong{color:var(--coal)}
   <a href="#regras">Regras</a>
   <a href="#revisao">Revisão</a>
   <a href="#historico">Histórico</a>
+  <button class="btn" onclick="abrirFoco()" style="font-size:9px;padding:6px 12px;border-color:var(--green);color:var(--green)">⊙ Foco</button>
 </nav>
+
+<!-- MODO FOCO OVERLAY -->
+<div id="foco-overlay">
+  <div class="foco-label">MODO FOCO</div>
+  <div class="foco-timer" id="foco-timer-display">00:00:00</div>
+  <div class="foco-progress"><div class="foco-bar" id="foco-bar" style="width:0%"></div></div>
+  <div class="foco-itens" id="foco-itens"></div>
+  <div class="foco-btns">
+    <button class="btn btn-run" id="foco-btn-start" onclick="focoStart()">▶ Iniciar</button>
+    <button class="btn btn-pause" id="foco-btn-pause" onclick="focoPause()" style="display:none">⏸ Pausar</button>
+    <button class="btn btn-run" id="foco-btn-resume" onclick="focoResume()" style="display:none">▶ Retomar</button>
+    <button class="btn btn-stop" onclick="fecharFoco()">✕ Sair do foco</button>
+  </div>
+</div>
+
+<!-- RESUMO SEMANAL -->
+<div class="weekly-summary" id="weekly-summary">
+  <div class="ws-card">
+    <div class="ws-title">Resumo da semana anterior</div>
+    <div class="ws-week" id="ws-week-label"></div>
+    <div id="ws-stats"></div>
+    <button class="btn btn-p ws-close" onclick="fecharResumo()">Entendido — começar a semana</button>
+  </div>
+</div>
+
+<!-- CONTADOR DIAS -->
+<div class="wrap" style="padding-top:20px">
+  <div class="day-counter" id="day-counter">
+    <div class="dc-num" id="dc-num">–</div>
+    <div class="dc-info">
+      <div class="dc-label">Protocolo 90 Dias</div>
+      <div id="dc-desc" style="font-size:13px;color:var(--light);margin-bottom:6px"></div>
+      <div class="dc-bar-wrap"><div class="dc-bar" id="dc-bar" style="width:0%"></div></div>
+      <div class="dc-sub" id="dc-sub"></div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--gray);letter-spacing:.15em;margin-bottom:4px">INÍCIO</div>
+      <input type="date" id="protocolo-start" style="background:var(--stone);border:1px solid var(--ash);color:var(--fire);font-family:'Space Mono',monospace;font-size:11px;padding:6px 8px;outline:none" onchange="salvarInicioProtocolo()">
+    </div>
+  </div>
+</div>
 
 <!-- MISSÃO -->
 <section id="missao">
@@ -462,6 +567,28 @@ footer strong{color:var(--coal)}
         <div class="tstat"><div class="tstat-val" id="t-hoje">0h00</div><div class="tstat-lbl">hoje</div></div>
         <div class="tstat"><div class="tstat-val" id="t-semana">0h00</div><div class="tstat-lbl">esta semana</div></div>
         <div class="tstat"><div class="tstat-val" id="t-mes">0h00</div><div class="tstat-lbl">este mês</div></div>
+      </div>
+      <!-- PAINEL HORAS -->
+      <div class="hours-panel" id="hours-panel" style="margin-top:20px">
+        <div class="hp-card"><div class="hp-val" id="hp-hoje">0h00</div><div class="hp-lbl">hoje</div><div class="hp-sub" id="hp-hoje-sub"></div></div>
+        <div class="hp-card"><div class="hp-val" id="hp-semana">0h00</div><div class="hp-lbl">esta semana</div></div>
+        <div class="hp-card"><div class="hp-val" id="hp-mes">0h00</div><div class="hp-lbl">este mês</div></div>
+        <div class="hp-card"><div class="hp-val" id="hp-total">0h00</div><div class="hp-lbl">protocolo total</div></div>
+      </div>
+      <!-- META DE HORAS -->
+      <div class="hours-goal-wrap">
+        <div class="hg-top">
+          <span class="hg-label">Meta diária de horas</span>
+          <span class="hg-val" id="hg-val-display">0h00 / <span id="hg-meta-display">6</span>h</span>
+        </div>
+        <div class="hg-bar-wrap"><div class="hg-bar low" id="hg-bar" style="width:0%"></div></div>
+        <div class="hg-sub" id="hg-sub">Defina sua meta e inicie o timer</div>
+        <div class="hg-set-row">
+          <span class="hg-set-lbl">Meta:</span>
+          <input class="hg-set-inp" type="number" id="hg-meta-inp" min="1" max="16" value="6">
+          <span class="hg-set-lbl">horas/dia</span>
+          <button class="btn btn-g" onclick="salvarMetaHoras()" style="font-size:9px;padding:6px 12px">Salvar</button>
+        </div>
       </div>
       <div class="timer-manual">
         <div class="timer-manual-row">
@@ -524,6 +651,11 @@ footer strong{color:var(--coal)}
           <button class="btn" onclick="loadRetroData()" style="font-size:9px;padding:7px 13px;border-color:var(--purple);color:var(--purple)">Carregar</button>
         </div>
         <div class="retro-items" id="retro-items"></div>
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="retro-date-lbl">Horas trabalhadas:</span>
+          <input class="retro-date-inp" type="number" id="retro-horas" placeholder="0" min="0" max="24" step="0.5" style="width:80px">
+          <span class="retro-date-lbl">horas</span>
+        </div>
         <div class="brow" style="margin-top:0">
           <button class="btn btn-p" onclick="saveRetroData()" id="btn-retro-save" style="display:none;border-color:var(--purple);background:var(--purple)">Salvar dia</button>
         </div>
@@ -950,7 +1082,7 @@ async function saveTimerToDb(ms){
 function timerStart(){
   if(timerRunning)return;
   timerStart_ts=Date.now();timerRunning=true;timerPaused=false;
-  timerInterval=setInterval(()=>{updateTimerDisplay();},1000);
+  timerInterval=setInterval(()=>{updateTimerDisplay();atualizarMetaHoras();},1000);
   // Autosave a cada 60 minutos
   timerAutoSaveInterval=setInterval(async()=>{
     if(timerRunning&&!timerPaused){
@@ -1045,23 +1177,10 @@ function updateTimerDisplay(){
 }
 
 async function loadTimerStats(){
-  document.getElementById('t-hoje').textContent=fmtHm(timerTodayTotal+(timerRunning&&!timerPaused&&timerStart_ts?Date.now()-timerStart_ts+timerAccum:timerAccum));
-  try{
-    const ws=weekStart();const ms_=monthStart();
-    const{data}=await db.from('timer_log').select('data,total_ms').gte('data',ms_);
-    let weekMs=0,monthMs=0;
-    (data||[]).forEach(r=>{
-      monthMs+=r.total_ms||0;
-      if(r.data>=ws)weekMs+=r.total_ms||0;
-    });
-    document.getElementById('t-semana').textContent=fmtHm(weekMs);
-    document.getElementById('t-mes').textContent=fmtHm(monthMs);
-  }catch(e){
-    // fallback localStorage
-    const ws=weekStart();let weekMs=0;
-    for(let i=0;i<7;i++){const d=new Date(ws+'T12:00:00');d.setDate(d.getDate()+i);weekMs+=parseInt(localStorage.getItem('mc_timer_'+d.toISOString().split('T')[0])||0);}
-    document.getElementById('t-semana').textContent=fmtHm(weekMs);
-  }
+  const current=timerTodayTotal+(timerRunning&&!timerPaused&&timerStart_ts?Date.now()-timerStart_ts+timerAccum:timerAccum);
+  document.getElementById('t-hoje').textContent=fmtHm(current);
+  atualizarMetaHoras();
+  await atualizarPainelHoras();
 }
 
 // ── GRÁFICO ───────────────────────────────────────────────────
@@ -1293,6 +1412,13 @@ async function loadRetroData(){
     if(item.type==='check')retroState.checks[r.item_id]=r.concluido;
     else retroState.counters[r.item_id]=r.valor||0;
   });
+  // Carregar horas do dia
+  try{
+    const{data:tlog}=await db.from('timer_log').select('total_ms').eq('data',retroDate).maybeSingle();
+    if(tlog&&tlog.total_ms){
+      document.getElementById('retro-horas').value=(tlog.total_ms/3600000).toFixed(1);
+    }else{document.getElementById('retro-horas').value='';}
+  }catch(e){}
   sync('ok','carregado');
   renderRetroItems();
   document.getElementById('btn-retro-save').style.display='inline-block';
@@ -1353,9 +1479,8 @@ async function saveRetroData(){
   const btn=document.getElementById('btn-retro-save');btn.disabled=true;
   sync('spin','salvando...');
   try{
-    // Deletar registros existentes para a data
+    // Checklist
     await db.from('checklist_log').delete().eq('data',retroDate);
-    // Inserir novos
     const rows=[];
     ITEMS.filter(i=>i.type==='count').forEach(item=>{
       const val=retroState.counters[item.id]||0;
@@ -1365,10 +1490,19 @@ async function saveRetroData(){
       if(retroState.checks[item.id])rows.push({data:retroDate,item_id:item.id,concluido:true,valor:1});
     });
     if(rows.length>0)await db.from('checklist_log').insert(rows);
+
+    // Horas trabalhadas
+    const horas=parseFloat(document.getElementById('retro-horas').value||0);
+    if(horas>0){
+      const ms=Math.round(horas*3600000);
+      await db.from('timer_log').upsert({data:retroDate,total_ms:ms},{onConflict:'data'});
+    }
+
     sync('ok','salvo');
     toast(`Dia ${retroDate} salvo com sucesso.`);
-    // Recarregar gráficos
+    document.getElementById('retro-horas').value='';
     await loadAllLogs();renderBarChart();renderStats();
+    await atualizarPainelHoras();
     btn.disabled=false;
   }catch(e){
     console.error(e);toast('Erro ao salvar.',true);sync('err','erro');btn.disabled=false;
@@ -1378,6 +1512,225 @@ async function saveRetroData(){
 // ── NAV ───────────────────────────────────────────────────────
 function updateNav(){const secs=document.querySelectorAll('section[id]');let cur='';secs.forEach(s=>{if(window.scrollY>=s.offsetTop-100)cur=s.id;});document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+cur));}
 window.addEventListener('scroll',updateNav,{passive:true});
+
+// ── PROTOCOLO 90 DIAS ────────────────────────────────────────
+function salvarInicioProtocolo(){
+  const val=document.getElementById('protocolo-start').value;
+  if(val)localStorage.setItem('mc_protocolo_start',val);
+  renderContadorDias();
+}
+
+function renderContadorDias(){
+  const startStr=localStorage.getItem('mc_protocolo_start');
+  const inp=document.getElementById('protocolo-start');
+  if(!startStr){
+    document.getElementById('dc-num').textContent='?';
+    document.getElementById('dc-desc').textContent='Defina a data de início do protocolo →';
+    document.getElementById('dc-sub').textContent='';
+    document.getElementById('dc-bar').style.width='0%';
+    return;
+  }
+  if(inp&&!inp.value)inp.value=startStr;
+  const start=new Date(startStr+'T00:00:00');
+  const now=new Date();
+  const diffMs=now-start;
+  const diffDays=Math.floor(diffMs/86400000)+1;
+  const totalDays=90;
+  const remaining=Math.max(0,totalDays-diffDays+1);
+  const pct=Math.min(100,Math.round((diffDays/totalDays)*100));
+
+  if(diffDays<1){
+    document.getElementById('dc-num').textContent='0';
+    document.getElementById('dc-desc').textContent='O protocolo ainda não começou.';
+  } else if(diffDays>totalDays){
+    document.getElementById('dc-num').textContent='✓';
+    document.getElementById('dc-desc').textContent='Protocolo de 90 dias concluído!';
+  } else {
+    document.getElementById('dc-num').textContent=diffDays;
+    document.getElementById('dc-desc').textContent=`de ${totalDays} dias — ${remaining} dia${remaining!==1?'s':''} restante${remaining!==1?'s':''}`;
+  }
+  document.getElementById('dc-bar').style.width=pct+'%';
+  document.getElementById('dc-sub').textContent=`Início: ${dateStr(startStr)} • ${pct}% concluído`;
+}
+
+// ── META DE HORAS ─────────────────────────────────────────────
+function salvarMetaHoras(){
+  const val=parseInt(document.getElementById('hg-meta-inp').value||6);
+  localStorage.setItem('mc_meta_horas',val);
+  document.getElementById('hg-meta-display').textContent=val;
+  atualizarMetaHoras();
+  toast('Meta de '+val+'h salva.');
+}
+
+function carregarMetaHoras(){
+  const meta=parseInt(localStorage.getItem('mc_meta_horas')||6);
+  document.getElementById('hg-meta-inp').value=meta;
+  document.getElementById('hg-meta-display').textContent=meta;
+}
+
+function atualizarMetaHoras(){
+  const meta=parseInt(localStorage.getItem('mc_meta_horas')||6);
+  const metaMs=meta*3600000;
+  const current=timerTodayTotal+(timerRunning&&!timerPaused&&timerStart_ts?Date.now()-timerStart_ts+timerAccum:timerAccum);
+  const pct=Math.min(100,Math.round((current/metaMs)*100));
+  const bar=document.getElementById('hg-bar');
+  bar.style.width=pct+'%';
+  bar.className='hg-bar '+(pct>=100?'ok':pct>=50?'mid':'low');
+  document.getElementById('hg-val-display').innerHTML=fmtHm(current)+' / <span id="hg-meta-display">'+meta+'</span>h';
+  const falta=Math.max(0,metaMs-current);
+  document.getElementById('hg-sub').textContent=pct>=100?'✓ Meta atingida hoje!':'Faltam '+fmtHm(falta)+' para a meta de hoje';
+  // Painel horas expandido
+  document.getElementById('hp-hoje').textContent=fmtHm(current);
+  document.getElementById('hp-hoje-sub').textContent=pct+'% da meta';
+}
+
+// ── PAINEL HORAS (semana/mês/total) ──────────────────────────
+async function atualizarPainelHoras(){
+  try{
+    const ws=weekStart();const ms_=monthStart();
+    const startProto=localStorage.getItem('mc_protocolo_start')||ms_;
+    const{data}=await db.from('timer_log').select('data,total_ms').gte('data',startProto);
+    let weekMs=0,monthMs=0,totalMs=0;
+    (data||[]).forEach(r=>{
+      const ms=r.total_ms||0;
+      totalMs+=ms;
+      if(r.data>=ms_)monthMs+=ms;
+      if(r.data>=ws)weekMs+=ms;
+    });
+    document.getElementById('hp-semana').textContent=fmtHm(weekMs);
+    document.getElementById('hp-mes').textContent=fmtHm(monthMs);
+    document.getElementById('hp-total').textContent=fmtHm(totalMs);
+    // t-semana e t-mes do timer antigo
+    document.getElementById('t-semana').textContent=fmtHm(weekMs);
+    document.getElementById('t-mes').textContent=fmtHm(monthMs);
+  }catch(e){console.warn('Painel horas:',e);}
+}
+
+// ── RESUMO SEMANAL ────────────────────────────────────────────
+async function verificarResumoSemanal(){
+  const hoje=today();
+  const diaSemana=new Date().getDay(); // 1 = segunda
+  if(diaSemana!==1)return; // só na segunda
+  const jaViu=localStorage.getItem('mc_resumo_visto');
+  if(jaViu===hoje)return; // já mostrou hoje
+
+  // Calcular semana anterior
+  const ws=weekStart();
+  const semAnt=new Date(ws+'T12:00:00');semAnt.setDate(semAnt.getDate()-7);
+  const semAntStr=localDateStr(semAnt);
+
+  try{
+    // Logs da semana anterior
+    const fimSemAnt=new Date(semAnt);fimSemAnt.setDate(semAnt.getDate()+6);
+    const fimStr=localDateStr(fimSemAnt);
+    const{data:logs}=await db.from('checklist_log').select('*').gte('data',semAntStr).lte('data',fimStr);
+    const{data:timer}=await db.from('timer_log').select('total_ms').gte('data',semAntStr).lte('data',fimStr);
+    const{data:mets}=await db.from('metricas').select('chave,valor').eq('semana',semAntStr);
+
+    // Montar stats
+    const totalHoras=fmtHm((timer||[]).reduce((a,r)=>a+(r.total_ms||0),0));
+    const diasComRegistro=[...new Set((logs||[]).map(r=>r.data))].length;
+    const metaMap={};(mets||[]).forEach(r=>{metaMap[r.chave]=r.valor;});
+    const artigosPC=metaMap['artigos_pc']||0;
+    const artigosVMP=metaMap['artigos_vmp']||0;
+    const videosShopee=metaMap['videos_shopee']||0;
+
+    const months=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    const sd=new Date(semAntStr+'T12:00:00');
+    const fd=new Date(fimStr+'T12:00:00');
+    document.getElementById('ws-week-label').textContent=
+      `${sd.getDate()} de ${months[sd.getMonth()]} a ${fd.getDate()} de ${months[fd.getMonth()]}`;
+
+    document.getElementById('ws-stats').innerHTML=`
+      <div class="ws-stat"><span class="ws-stat-label">Dias com registro</span><span class="ws-stat-val">${diasComRegistro} de 7</span></div>
+      <div class="ws-stat"><span class="ws-stat-label">Horas trabalhadas</span><span class="ws-stat-val">${totalHoras}</span></div>
+      <div class="ws-stat"><span class="ws-stat-label">Artigos Parafusadeira Certa</span><span class="ws-stat-val">${artigosPC}</span></div>
+      <div class="ws-stat"><span class="ws-stat-label">Artigos Vida Mais Prática</span><span class="ws-stat-val">${artigosVMP}</span></div>
+      <div class="ws-stat"><span class="ws-stat-label">Vídeos Shopee</span><span class="ws-stat-val">${videosShopee}</span></div>
+    `;
+
+    document.getElementById('weekly-summary').classList.add('open');
+    localStorage.setItem('mc_resumo_visto',hoje);
+  }catch(e){console.warn('Resumo semanal:',e);}
+}
+
+function fecharResumo(){
+  document.getElementById('weekly-summary').classList.remove('open');
+}
+
+// ── MODO FOCO ─────────────────────────────────────────────────
+let focoRunning=false;let focoPaused_=false;
+let focoStart_ts=null;let focoAccum=0;let focoInterval=null;
+let focoMetaMs=0;
+
+function abrirFoco(){
+  const meta=parseInt(localStorage.getItem('mc_meta_horas')||6);
+  focoMetaMs=meta*3600000;
+  renderFocoItens();
+  document.getElementById('foco-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  // Sincronizar com timer principal
+  focoAccum=timerTodayTotal+(timerRunning&&!timerPaused&&timerStart_ts?Date.now()-timerStart_ts+timerAccum:timerAccum);
+  atualizarFocoDisplay();
+}
+
+function fecharFoco(){
+  if(focoRunning)focoPause();
+  document.getElementById('foco-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  if(focoInterval)clearInterval(focoInterval);
+  focoRunning=false;focoPaused_=false;
+}
+
+function renderFocoItens(){
+  const wrap=document.getElementById('foco-itens');wrap.innerHTML='';
+  ITEMS.filter(i=>i.type==='check').slice(0,5).forEach(item=>{
+    const done=!!checksState[item.id];
+    const el=document.createElement('div');
+    el.className='foco-item'+(done?' done':'');
+    el.innerHTML=`<div class="foco-item-dot"></div><span>${item.title}</span>`;
+    wrap.appendChild(el);
+  });
+}
+
+function focoStart(){
+  focoStart_ts=Date.now();focoRunning=true;focoPaused_=false;
+  focoInterval=setInterval(atualizarFocoDisplay,1000);
+  document.getElementById('foco-btn-start').style.display='none';
+  document.getElementById('foco-btn-pause').style.display='inline-block';
+  // Sincronizar com timer principal também
+  if(!timerRunning)timerStart();
+}
+
+function focoPause(){
+  focoAccum+=Date.now()-focoStart_ts;
+  focoStart_ts=null;focoRunning=false;focoPaused_=true;
+  clearInterval(focoInterval);
+  document.getElementById('foco-btn-pause').style.display='none';
+  document.getElementById('foco-btn-resume').style.display='inline-block';
+  document.getElementById('foco-timer-display').className='foco-timer paused';
+  if(timerRunning&&!timerPaused)timerPause();
+}
+
+function focoResume(){
+  focoStart_ts=Date.now();focoRunning=true;focoPaused_=false;
+  focoInterval=setInterval(atualizarFocoDisplay,1000);
+  document.getElementById('foco-btn-resume').style.display='none';
+  document.getElementById('foco-btn-pause').style.display='inline-block';
+  document.getElementById('foco-timer-display').className='foco-timer';
+  if(timerPaused)timerResume();
+}
+
+function atualizarFocoDisplay(){
+  const current=focoRunning&&focoStart_ts?focoAccum+(Date.now()-focoStart_ts):focoAccum;
+  document.getElementById('foco-timer-display').textContent=fmtMs(current);
+  const pct=focoMetaMs>0?Math.min(100,Math.round((current/focoMetaMs)*100)):0;
+  document.getElementById('foco-bar').style.width=pct+'%';
+  // Atualizar itens
+  renderFocoItens();
+  // Atualizar meta horas principal também
+  atualizarMetaHoras();
+}
 
 // ── FRASES DO DIA ─────────────────────────────────────────────
 const FRASES=[
@@ -1443,6 +1796,9 @@ async function init(){
     await loadHistory();
     loadNotifSettings();
     sync('ok','sincronizado');
+    await verificarResumoSemanal();
+    await atualizarPainelHoras();
+    atualizarMetaHoras();
   }catch(e){console.error(e);sync('err','erro de conexão');toast('Erro ao conectar',true);}
   document.getElementById('loader').classList.add('gone');updateNav();
 }
