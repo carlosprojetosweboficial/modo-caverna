@@ -977,6 +977,7 @@ let timerStart_ts=null;
 let timerAccum=0;
 let timerInterval=null;
 let timerAutoSaveInterval=null;
+let timerSyncInterval=null;
 let timerTodayTotal=0; // ms salvos no banco hoje
 let timerDbId=null; // id do registro no banco para upsert
 
@@ -1233,7 +1234,7 @@ function timerStart(){
   if(timerRunning)return;
   timerStart_ts=Date.now();timerRunning=true;timerPaused=false;
   timerInterval=setInterval(()=>{updateTimerDisplay();atualizarMetaHoras();},1000);
-  // Autosave a cada 60 minutos
+  // Autosave a cada 60 minutos (registro definitivo)
   timerAutoSaveInterval=setInterval(async()=>{
     if(timerRunning&&!timerPaused){
       const sessionMs=Date.now()-timerStart_ts+timerAccum;
@@ -1244,6 +1245,20 @@ function timerStart(){
       loadTimerStats();
     }
   },3600000);
+  // Sync leve a cada 30s para outros dispositivos verem o progresso
+  timerSyncInterval=setInterval(async()=>{
+    if(timerRunning&&!timerPaused&&timerStart_ts){
+      const current=timerTodayTotal+(Date.now()-timerStart_ts)+timerAccum;
+      try{
+        if(timerDbId){
+          await dbPatch('timer_log',{total_ms:current,updated_at:new Date().toISOString()},{'id':'eq.'+timerDbId});
+        }else{
+          const{data}=await dbUpsert('timer_log',{data:today(),total_ms:current},'data');
+          if(data&&data[0])timerDbId=data[0].id;
+        }
+      }catch(e){console.warn('Sync leve timer:',e);}
+    }
+  },30000);
   document.getElementById('btn-start').style.display='none';
   document.getElementById('btn-pause').style.display='inline-block';
   document.getElementById('btn-stop').style.display='inline-block';
@@ -1256,6 +1271,7 @@ function timerPause(){
   timerAccum+=Date.now()-timerStart_ts;
   timerStart_ts=null;timerPaused=true;
   clearInterval(timerInterval);
+  clearInterval(timerSyncInterval);
   document.getElementById('btn-pause').style.display='none';
   document.getElementById('btn-resume').style.display='inline-block';
   document.getElementById('timer-display').className='timer-display paused';
@@ -1275,7 +1291,7 @@ function timerResume(){
 async function timerStop(){
   if(!confirm('Finalizar a sessão de trabalho de hoje?'))return;
   const sessionMs=timerPaused?timerAccum:(timerAccum+(timerStart_ts?Date.now()-timerStart_ts:0));
-  clearInterval(timerInterval);clearInterval(timerAutoSaveInterval);
+  clearInterval(timerInterval);clearInterval(timerAutoSaveInterval);clearInterval(timerSyncInterval);
   await saveTimerToDb(sessionMs);
   timerTodayTotal+=sessionMs;
   timerAccum=0;timerStart_ts=null;timerRunning=false;timerPaused=false;
@@ -1306,7 +1322,7 @@ async function zerarTimer(){
   if(!confirm('Zerar o timer de hoje?'))return;
   timerTodayTotal=0;timerAccum=0;timerStart_ts=null;
   if(timerRunning||timerPaused){
-    clearInterval(timerInterval);clearInterval(timerAutoSaveInterval);
+    clearInterval(timerInterval);clearInterval(timerAutoSaveInterval);clearInterval(timerSyncInterval);
     timerRunning=false;timerPaused=false;
     document.getElementById('btn-start').style.display='inline-block';
     document.getElementById('btn-pause').style.display='none';
@@ -1346,13 +1362,20 @@ async function loadAllLogs(){
   const d=new Date();d.setDate(d.getDate()-91);
   const start=localDateStr(d);
   const{data}=await dbSelect('checklist_log','*',{'data':'gte.'+start});
-  allLogs=data||[];
+  // Filtrar apenas registros realmente concluídos (concluido=true E valor>0 para contadores)
+  allLogs=(data||[]).filter(r=>r.concluido===true);
 }
 
 function renderBarChart(){
   const chart=document.getElementById('bar-chart');chart.innerHTML='';
   const byDate={};
-  allLogs.forEach(r=>{if(!byDate[r.data])byDate[r.data]={};byDate[r.data][r.item_id]=true;});
+  allLogs.forEach(r=>{
+    const item=ITEMS.find(i=>i.id===r.item_id);
+    const isValid = item && (item.type==='check' ? r.concluido===true : (r.valor||0)>0);
+    if(!isValid) return;
+    if(!byDate[r.data])byDate[r.data]={};
+    byDate[r.data][r.item_id]=true;
+  });
   const totalItems=ITEMS.length||1;
 
   let periods=[];
@@ -1392,7 +1415,14 @@ function renderBarChart(){
 
 function renderStats(){
   const byDate={};
-  allLogs.forEach(r=>{if(!byDate[r.data])byDate[r.data]={};byDate[r.data][r.item_id]=true;});
+  // allLogs já filtrado só com concluido=true, mas garantir double-check para contadores (valor>0)
+  allLogs.forEach(r=>{
+    const item=ITEMS.find(i=>i.id===r.item_id);
+    const isValid = item && (item.type==='check' ? r.concluido===true : (r.valor||0)>0);
+    if(!isValid) return;
+    if(!byDate[r.data])byDate[r.data]={};
+    byDate[r.data][r.item_id]=true;
+  });
   const totalItems=ITEMS.length||1;
   const days=Object.keys(byDate);
   const completeDays=days.filter(d=>Object.keys(byDate[d]).length>=totalItems).length;
@@ -1635,23 +1665,25 @@ async function saveRetroData(){
     const{error:delErr}=await dbDelete('checklist_log',{'data':'eq.'+retroDate});
     if(delErr)throw delErr;
 
-    // 2. Montar novos registros
+    // 2. Montar APENAS registros de itens realmente marcados/preenchidos
+    // (itens em zero/desmarcados simplesmente não entram — já foram apagados no passo 1)
     const rows=[];
     ITEMS.filter(i=>i.type==='count').forEach(item=>{
       const val=retroState.counters[item.id]||0;
-      // Salvar mesmo zero para registrar que o dia foi lançado
-      rows.push({data:retroDate,item_id:item.id,concluido:val>0,valor:val});
+      if(val>0) rows.push({data:retroDate,item_id:item.id,concluido:true,valor:val});
     });
     ITEMS.filter(i=>i.type==='check').forEach(item=>{
       const done=!!retroState.checks[item.id];
-      rows.push({data:retroDate,item_id:item.id,concluido:done,valor:done?1:0});
+      if(done) rows.push({data:retroDate,item_id:item.id,concluido:true,valor:1});
     });
 
-    // 3. Inserir em lotes de 10 para evitar timeout
-    for(let i=0;i<rows.length;i+=10){
-      const batch=rows.slice(i,i+10);
-      const{error:insErr}=await dbInsertMany('checklist_log',batch);
-      if(insErr)throw insErr;
+    // 3. Inserir em lotes de 10 para evitar timeout (só se houver algo a inserir)
+    if(rows.length>0){
+      for(let i=0;i<rows.length;i+=10){
+        const batch=rows.slice(i,i+10);
+        const{error:insErr}=await dbInsertMany('checklist_log',batch);
+        if(insErr)throw insErr;
+      }
     }
 
     // 4. Salvar horas
@@ -1667,11 +1699,18 @@ async function saveRetroData(){
     toast(`✓ Dia ${retroDate} salvo no banco.`);
     document.getElementById('retro-horas').value='';
 
-    // 5. Recarregar gráficos
+    // 5. Recarregar TUDO do zero para garantir consistência
     await loadAllLogs();
     renderBarChart();
     renderStats();
     await atualizarPainelHoras();
+
+    // Se a data editada for hoje, recarrega o checklist também
+    if(retroDate===today()){
+      await loadTodayData();
+      renderAll();
+    }
+
     btn.disabled=false;
 
   }catch(e){
