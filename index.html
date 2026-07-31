@@ -516,7 +516,10 @@ footer strong{color:var(--coal)}
     </div>
     <div style="text-align:right;flex-shrink:0">
       <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--gray);letter-spacing:.15em;margin-bottom:4px">INÍCIO</div>
-      <input type="date" id="protocolo-start" style="background:var(--stone);border:1px solid var(--ash);color:var(--fire);font-family:'Space Mono',monospace;font-size:11px;padding:6px 8px;outline:none" onchange="salvarInicioProtocolo()">
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="date" id="protocolo-start" style="background:var(--stone);border:1px solid var(--ash);color:var(--fire);font-family:'Space Mono',monospace;font-size:11px;padding:6px 8px;outline:none">
+        <button class="btn btn-g" onclick="salvarInicioProtocolo()" style="font-size:9px;padding:6px 10px">Salvar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1066,9 +1069,12 @@ async function loadItems(){
 }
 async function saveItemsRemote(){
   localStorage.setItem('mc_items_v4',JSON.stringify(ITEMS)); // cache local de emergência
-  try{
-    await dbUpsert('config',{chave:'items_checklist',valor:JSON.stringify(ITEMS),updated_at:new Date().toISOString()},'chave');
-  }catch(e){console.warn('saveItemsRemote falhou:',e);}
+  const{error}=await dbUpsert('config',{chave:'items_checklist',valor:JSON.stringify(ITEMS),updated_at:new Date().toISOString()},'chave');
+  if(error){
+    console.error('saveItemsRemote ERRO:',error);
+    toast('⚠ Erro ao salvar no banco: '+(error.message||JSON.stringify(error)),true);
+  }
+  return error;
 }
 // alias para manter compatibilidade com chamadas existentes no código
 function saveItemsLocal(){ saveItemsRemote(); }
@@ -1209,21 +1215,27 @@ function setModalType(t){
 }
 function openModal(){document.getElementById('modal-add').classList.add('open');document.getElementById('new-title').focus();}
 function closeModal(){document.getElementById('modal-add').classList.remove('open');document.getElementById('new-title').value='';document.getElementById('new-unit').value='';}
-function confirmAddItem(){
+async function confirmAddItem(){
   const title=document.getElementById('new-title').value.trim();
   if(!title){toast('Digite uma descrição.',true);return;}
   const catRaw=document.getElementById('new-cat').value;const[cat,cls]=catRaw.split('|');
   const unit=document.getElementById('new-unit').value.trim();
   const id='i'+Date.now();
   ITEMS.push({id,type:newItemType,title,cat,cls,unit});
-  saveItemsLocal();closeModal();renderAll();toast('Item adicionado.');
+  closeModal();renderAll();
+  toast('Salvando item...');
+  await saveItemsRemote();
+  toast('✓ Item adicionado e sincronizado.');
 }
 async function deleteItem(e,id){
   e.stopPropagation();if(!confirm('Remover este item?'))return;
-  ITEMS=ITEMS.filter(i=>i.id!==id);saveItemsLocal();
+  ITEMS=ITEMS.filter(i=>i.id!==id);
+  renderAll();
+  toast('Removendo...');
+  await saveItemsRemote();
   await dbDelete('checklist_log',{'item_id':'eq.'+id});
   delete checksState[id];delete countersState[id];
-  renderAll();toast('Item removido.');
+  renderAll();toast('✓ Item removido e sincronizado.');
 }
 document.getElementById('new-title').addEventListener('keydown',e=>{if(e.key==='Enter')confirmAddItem();});
 document.getElementById('modal-add').addEventListener('click',e=>{if(e.target===document.getElementById('modal-add'))closeModal();});
