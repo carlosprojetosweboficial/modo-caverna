@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoria Completa</title>
+<style>
+body{background:#0a0a0a;color:#eee;font-family:monospace;padding:16px;max-width:100%;margin:0 auto;font-size:13px}
+h1{color:#f59e0b;font-size:16px}
+.log{padding:10px;margin:6px 0;border-radius:3px;word-break:break-all;font-size:12px}
+.ok{background:#052e16;border-left:3px solid #22c55e;color:#86efac}
+.err{background:#2d0a0a;border-left:3px solid #ef4444;color:#fca5a5}
+.info{background:#0f172a;border-left:3px solid #3b82f6;color:#93c5fd}
+.warn{background:#2d1a05;border-left:3px solid #f59e0b;color:#fcd34d}
+button{background:#f59e0b;color:#000;border:none;padding:12px 18px;margin:4px;cursor:pointer;font-weight:bold;font-size:13px;border-radius:3px;width:100%}
+.danger{background:#ef4444;color:#fff}
+pre{white-space:pre-wrap;font-size:11px;margin-top:6px}
+</style>
+</head>
+<body>
+<h1>🔍 Auditoria Completa do Banco</h1>
+<button onclick="auditar()">▶ Ver TUDO que está salvo</button>
+<button onclick="zerarTudo()" class="danger">🗑 ZERAR TODOS OS DADOS</button>
+<div id="out"></div>
+<script>
+const URL='https://lysdzuoygryvedbtceqf.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5c2R6dW95Z3J5dmVkYnRjZXFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzE2MzksImV4cCI6MjEwMDMwNzYzOX0.u9V4vXgZYx_aXMXbbdZ5jMVoFv0jhiHuIGRc2UnanX0';
+const H={'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'};
+
+function log(msg,type='info',data=null){
+  const d=document.createElement('div');
+  d.className='log '+type;
+  d.textContent=msg;
+  if(data!==null){
+    const pre=document.createElement('pre');
+    pre.textContent=JSON.stringify(data,null,1);
+    d.appendChild(pre);
+  }
+  document.getElementById('out').appendChild(d);
+}
+
+async function req(method,path,body){
+  const opts={method,headers:H};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(URL+path,opts);
+  const txt=await r.text();
+  let data;try{data=JSON.parse(txt);}catch{data=txt;}
+  return{ok:r.ok,status:r.status,data};
+}
+
+async function auditar(){
+  document.getElementById('out').innerHTML='';
+  log('Auditando banco de dados completo...','info');
+
+  const tables=['checklist_log','metricas','revisao','streak','timer_log'];
+  for(const t of tables){
+    const r=await req('GET',`/rest/v1/${t}?select=*&order=data.desc.nullslast&limit=200`);
+    if(r.ok){
+      const count=r.data.length;
+      log(`📊 ${t}: ${count} registros totais`, count>0?'warn':'ok', r.data);
+    }else{
+      log(`✗ Erro em ${t}: `+JSON.stringify(r.data),'err');
+    }
+  }
+  log('✓ Auditoria completa','ok');
+}
+
+async function zerarTudo(){
+  if(!confirm('ATENÇÃO: isso vai apagar TODOS os dados salvos (checklist, métricas, revisões, streak, timer). Tem certeza?')) return;
+  if(!confirm('Confirma de novo? Essa ação NÃO pode ser desfeita.')) return;
+
+  document.getElementById('out').innerHTML='';
+  log('Zerando banco de dados...','warn');
+
+  const ops=[
+    ['checklist_log', 'data=not.is.null'],
+    ['metricas', 'id=not.is.null'],
+    ['revisao', 'id=not.is.null'],
+    ['timer_log', 'data=not.is.null'],
+  ];
+
+  for(const [table, filter] of ops){
+    const r=await req('DELETE',`/rest/v1/${table}?${filter}`);
+    log(`${r.ok?'✓':'✗'} ${table} limpo`, r.ok?'ok':'err');
+  }
+
+  // Resetar streak em vez de deletar
+  const{data:streaks}=await req('GET','/rest/v1/streak?select=id&limit=1');
+  if(streaks && streaks[0]){
+    await req('PATCH',`/rest/v1/streak?id=eq.${streaks[0].id}`,
+      {sequencia_atual:0,sequencia_maxima:0,ultimo_dia_completo:null});
+    log('✓ streak resetado para zero','ok');
+  }
+
+  log('✓ BANCO TOTALMENTE ZERADO. Pronto para começar amanhã.','ok');
+}
+</script>
+</body>
+</html>
