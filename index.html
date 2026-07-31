@@ -1061,6 +1061,7 @@ async function toggleCheck(id){
   if(done){await dbDelete('checklist_log',{'data':'eq.'+today(),'item_id':'eq.'+id});delete checksState[id];}
   else{await dbUpsert('checklist_log',{data:today(),item_id:id,concluido:true,valor:1},'data,item_id');checksState[id]=true;}
   sync('ok','sincronizado');renderAll();await updateStreak();
+  lastSyncHash=hashChecks();
 }
 
 // ── COUNTER ───────────────────────────────────────────────────
@@ -1073,6 +1074,7 @@ async function changeCounter(id,delta){
   else{await dbUpsert('checklist_log',{data:today(),item_id:id,concluido:next>0,valor:next},'data,item_id');}
   sync('ok','sincronizado');
   renderAll();await updateStreak();
+  lastSyncHash=hashChecks();
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────
@@ -1985,6 +1987,51 @@ function renderFrase(){
   document.getElementById('frase-autor').textContent='— '+f.autor;
 }
 
+// ── POLLING GLOBAL — sincronização quase em tempo real ────────
+let pollingInterval=null;
+let lastSyncHash='';
+
+function hashChecks(){
+  // Cria uma "impressão digital" do estado atual para comparar
+  return JSON.stringify({c:checksState,n:countersState});
+}
+
+async function pollUpdates(){
+  try{
+    const{data}=await dbSelect('checklist_log','item_id,valor,concluido',{'data':'eq.'+today()});
+    const newChecks={};const newCounters={};
+    (data||[]).forEach(r=>{
+      const item=ITEMS.find(i=>i.id===r.item_id);
+      if(!item)return;
+      if(item.type==='check'){ if(r.concluido) newChecks[r.item_id]=true; }
+      else{ newCounters[r.item_id]=r.valor||0; }
+    });
+    const newHash=JSON.stringify({c:newChecks,n:newCounters});
+    if(newHash!==lastSyncHash){
+      checksState=newChecks;
+      countersState=newCounters;
+      lastSyncHash=newHash;
+      renderAll();
+    }
+  }catch(e){ /* silencioso — não interromper o uso por falha de poll */ }
+}
+
+function startPolling(){
+  if(pollingInterval)clearInterval(pollingInterval);
+  lastSyncHash=hashChecks();
+  pollingInterval=setInterval(pollUpdates,5000); // a cada 5 segundos
+}
+
+// Pausar polling quando app não está visível (economiza bateria/dados)
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(pollingInterval)clearInterval(pollingInterval);
+  }else{
+    startPolling();
+    pollUpdates(); // sync imediato ao voltar
+  }
+});
+
 // ── INIT ──────────────────────────────────────────────────────
 async function init(){
   renderFrase();
@@ -2011,6 +2058,7 @@ async function init(){
     await verificarResumoSemanal();
     await atualizarPainelHoras();
     atualizarMetaHoras();
+    startPolling();
   }catch(e){console.error(e);sync('err','erro de conexão');toast('Erro ao conectar',true);}
   document.getElementById('loader').classList.add('gone');updateNav();
 }
