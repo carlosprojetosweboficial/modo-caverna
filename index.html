@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MODO CAVERNA</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -410,7 +411,7 @@ footer strong{color:var(--coal)}
 
 <div id="loader"><div class="ld-title">MODO CAVERNA</div><div class="ld-bar"><div class="ld-fill"></div></div></div>
 <div id="flame-bar"></div>
-<div id="sync-bar"><div class="sdot spin" id="sdot"></div><span id="stxt">conectando...</span></div>
+<div id="sync-bar"><div class="sdot spin" id="sdot"></div><span id="stxt">conectando...</span><button onclick="forcarSync()" style="background:none;border:1px solid var(--gray);color:var(--gray);font-size:8px;padding:2px 6px;margin-left:6px;cursor:pointer;border-radius:2px;font-family:'Space Mono',monospace">↻</button></div>
 <div id="toast"></div>
 
 <!-- MODAL -->
@@ -799,6 +800,9 @@ footer strong{color:var(--coal)}
   <div class="wrap">
     <div class="slabel">// Histórico</div>
     <h2>Semanas anteriores</h2>
+    <div class="brow" style="margin-top:0;margin-bottom:20px">
+      <button class="btn btn-g" onclick="exportarExcel()">⬇ Exportar tudo para Excel</button>
+    </div>
     <div id="hist-list"><div style="color:var(--gray);font-size:13px">Carregando...</div></div>
   </div>
 </section>
@@ -1004,7 +1008,7 @@ const DEFAULT_ITEMS=[
   {id:'p1',type:'count',title:'Artigos — Parafusadeira Certa',cat:'Site',cls:'fire',unit:'artigos'},
   {id:'p2',type:'count',title:'Artigos — Vida Mais Prática',cat:'Site',cls:'fire',unit:'artigos'},
   {id:'p3',type:'count',title:'Vídeos — Shopee',cat:'Shopee',cls:'fire',unit:'vídeos'},
-  {id:'c1',type:'check',title:'Treino em casa (flexão, agachamento, prancha)',cat:'Saúde',cls:'grn'},
+  {id:'c1',type:'check',title:'Treino em casa (opcional — quando der)',cat:'Saúde',cls:'grn'},
   {id:'c2',type:'check',title:'Bebeu pelo menos 2L de água',cat:'Saúde',cls:'grn'},
   {id:'c3',type:'check',title:'Dormiu bem (7h)',cat:'Saúde',cls:'grn'},
   {id:'c4',type:'check',title:'Telas desligadas às 21h30',cat:'Rotina',cls:''},
@@ -1061,7 +1065,6 @@ async function toggleCheck(id){
   if(done){await dbDelete('checklist_log',{'data':'eq.'+today(),'item_id':'eq.'+id});delete checksState[id];}
   else{await dbUpsert('checklist_log',{data:today(),item_id:id,concluido:true,valor:1},'data,item_id');checksState[id]=true;}
   sync('ok','sincronizado');renderAll();await updateStreak();
-  lastSyncHash=hashChecks();
 }
 
 // ── COUNTER ───────────────────────────────────────────────────
@@ -1074,7 +1077,6 @@ async function changeCounter(id,delta){
   else{await dbUpsert('checklist_log',{data:today(),item_id:id,concluido:next>0,valor:next},'data,item_id');}
   sync('ok','sincronizado');
   renderAll();await updateStreak();
-  lastSyncHash=hashChecks();
 }
 
 // ── RENDER ALL ────────────────────────────────────────────────
@@ -1987,18 +1989,16 @@ function renderFrase(){
   document.getElementById('frase-autor').textContent='— '+f.autor;
 }
 
-// ── POLLING GLOBAL — sincronização quase em tempo real ────────
+// ── POLLING GLOBAL — sincronização em tempo real ──────────────
 let pollingInterval=null;
-let lastSyncHash='';
-
-function hashChecks(){
-  // Cria uma "impressão digital" do estado atual para comparar
-  return JSON.stringify({c:checksState,n:countersState});
-}
+let isPolling=false;
 
 async function pollUpdates(){
+  if(isPolling)return; // evita chamadas sobrepostas
+  isPolling=true;
   try{
-    const{data}=await dbSelect('checklist_log','item_id,valor,concluido',{'data':'eq.'+today()});
+    const{data,error}=await dbSelect('checklist_log','item_id,valor,concluido',{'data':'eq.'+today()});
+    if(error){isPolling=false;return;}
     const newChecks={};const newCounters={};
     (data||[]).forEach(r=>{
       const item=ITEMS.find(i=>i.id===r.item_id);
@@ -2006,20 +2006,31 @@ async function pollUpdates(){
       if(item.type==='check'){ if(r.concluido) newChecks[r.item_id]=true; }
       else{ newCounters[r.item_id]=r.valor||0; }
     });
-    const newHash=JSON.stringify({c:newChecks,n:newCounters});
-    if(newHash!==lastSyncHash){
-      checksState=newChecks;
-      countersState=newCounters;
-      lastSyncHash=newHash;
-      renderAll();
-    }
-  }catch(e){ /* silencioso — não interromper o uso por falha de poll */ }
+    checksState=newChecks;
+    countersState=newCounters;
+    renderAll();
+    sync('ok','sincronizado');
+  }catch(e){
+    console.warn('Poll error:',e);
+  }
+  isPolling=false;
 }
 
 function startPolling(){
   if(pollingInterval)clearInterval(pollingInterval);
-  lastSyncHash=hashChecks();
-  pollingInterval=setInterval(pollUpdates,5000); // a cada 5 segundos
+  pollingInterval=setInterval(pollUpdates,4000); // a cada 4 segundos
+}
+
+// Sincronização MANUAL — botão de emergência caso polling falhe
+async function forcarSync(){
+  toast('Sincronizando...');
+  await loadTodayData();
+  renderAll();
+  await loadAllLogs();
+  renderBarChart();
+  renderStats();
+  await atualizarPainelHoras();
+  toast('✓ Sincronizado com o banco.');
 }
 
 // Pausar polling quando app não está visível (economiza bateria/dados)
@@ -2031,6 +2042,81 @@ document.addEventListener('visibilitychange',()=>{
     pollUpdates(); // sync imediato ao voltar
   }
 });
+
+// ── EXPORTAR PARA EXCEL ────────────────────────────────────────
+async function exportarExcel(){
+  toast('Gerando arquivo Excel...');
+  try{
+    const d90=new Date();d90.setDate(d90.getDate()-90);
+    const start=localDateStr(d90);
+
+    // 1. Checklist completo
+    const{data:logs}=await dbSelect('checklist_log','*',{'data':'gte.'+start},{order:'data.asc'});
+
+    // 2. Timer
+    const{data:timers}=await dbSelect('timer_log','*',{'data':'gte.'+start},{order:'data.asc'});
+
+    // 3. Métricas
+    const{data:mets}=await dbSelect('metricas','*',{},{order:'semana.asc'});
+
+    // 4. Revisões
+    const{data:revs}=await dbSelect('revisao','*',{},{order:'semana.asc'});
+
+    // Montar planilha de Checklist (uma linha por dia, colunas por item)
+    const byDate={};
+    (logs||[]).forEach(r=>{
+      if(!byDate[r.data])byDate[r.data]={};
+      const item=ITEMS.find(i=>i.id===r.item_id);
+      const label=item?item.title:r.item_id;
+      byDate[r.data][label]=item&&item.type==='check'?(r.concluido?'Sim':'Não'):(r.valor||0);
+    });
+    const checklistRows=Object.keys(byDate).sort().map(data=>({Data:data,...byDate[data]}));
+
+    // Timer
+    const timerRows=(timers||[]).map(t=>({
+      Data:t.data,
+      Horas:(t.total_ms/3600000).toFixed(2),
+      'Horas:Min':fmtHm(t.total_ms||0)
+    }));
+
+    // Métricas agrupadas por semana
+    const metByWeek={};
+    (mets||[]).forEach(m=>{
+      if(!metByWeek[m.semana])metByWeek[m.semana]={};
+      const metric=METRICS.find(x=>x.id===m.chave);
+      metByWeek[m.semana][metric?metric.label:m.chave]=m.valor;
+    });
+    const metricasRows=Object.keys(metByWeek).sort().map(sem=>({Semana:sem,...metByWeek[sem]}));
+
+    // Revisões agrupadas por semana
+    const revByWeek={};
+    (revs||[]).forEach(r=>{
+      if(!revByWeek[r.semana])revByWeek[r.semana]={};
+      const q=REVIEW_QS.find(x=>x.id===r.pergunta_id);
+      revByWeek[r.semana][q?q.label:r.pergunta_id]=r.resposta;
+    });
+    const revisaoRows=Object.keys(revByWeek).sort().map(sem=>({Semana:sem,...revByWeek[sem]}));
+
+    // Criar workbook
+    const wb=XLSX.utils.book_new();
+    if(checklistRows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(checklistRows),'Checklist Diário');
+    if(timerRows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(timerRows),'Horas Trabalhadas');
+    if(metricasRows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(metricasRows),'Métricas Semanais');
+    if(revisaoRows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(revisaoRows),'Revisões Semanais');
+
+    if(wb.SheetNames.length===0){
+      toast('Nenhum dado para exportar ainda.',true);
+      return;
+    }
+
+    const filename=`modo-caverna-${today()}.xlsx`;
+    XLSX.writeFile(wb,filename);
+    toast('✓ Arquivo baixado: '+filename);
+  }catch(e){
+    console.error(e);
+    toast('Erro ao gerar Excel: '+e.message,true);
+  }
+}
 
 // ── INIT ──────────────────────────────────────────────────────
 async function init(){
