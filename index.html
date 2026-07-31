@@ -818,7 +818,9 @@ const HEADERS = {
   'apikey': SKEY,
   'Authorization': 'Bearer ' + SKEY,
   'Content-Type': 'application/json',
-  'Prefer': 'return=representation'
+  'Prefer': 'return=representation',
+  'Cache-Control': 'no-cache, no-store, must-revalidate',
+  'Pragma': 'no-cache'
 };
 
 // API simplificada compatível com qualquer navegador
@@ -868,7 +870,7 @@ const db = {
     async delete() {
       let url=`${SURL}/rest/v1/${this._table}?`;
       this._filters.forEach((f,i)=>{ url+=( i>0?'&':'')+f; });
-      const r=await fetch(url,{method:'DELETE',headers:HEADERS});
+      const r=await fetch(url,{method:'DELETE',headers:HEADERS,cache:'no-store'});
       if(!r.ok){const e=await r.json();return{error:e};}
       return{error:null};
     },
@@ -888,7 +890,7 @@ const db = {
       const h={...HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'};
       let url=`${SURL}/rest/v1/${this._table}`;
       if(onConflict) url+=`?on_conflict=${onConflict}`;
-      const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+      const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body),cache:'no-store'});
       if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{data:null,error:e};}
       const data=await r.json().catch(()=>null);
       return{data,error:null};
@@ -897,7 +899,7 @@ const db = {
     async update(obj) {
       let url=`${SURL}/rest/v1/${this._table}?`;
       this._filters.forEach((f,i)=>{ url+=(i>0?'&':'')+f; });
-      const r=await fetch(url,{method:'PATCH',headers:HEADERS,body:JSON.stringify(obj)});
+      const r=await fetch(url,{method:'PATCH',headers:HEADERS,body:JSON.stringify(obj),cache:'no-store'});
       if(!r.ok){const e=await r.json();return{data:null,error:e};}
       const data=await r.json().catch(()=>null);
       return{data,error:null};
@@ -911,9 +913,10 @@ async function dbSelect(table,cols,filters={},opts={}) {
   Object.entries(filters).forEach(([k,v])=>{ url+=`&${k}=${v}`; });
   if(opts.order) url+=`&order=${opts.order}`;
   if(opts.limit) url+=`&limit=${opts.limit}`;
+  url+=`&_t=${Date.now()}`; // cache-busting definitivo
   const h={...HEADERS};
   if(opts.single) h['Accept']='application/vnd.pgrst.object+json';
-  const r=await fetch(url,{headers:h});
+  const r=await fetch(url,{headers:h,cache:'no-store'});
   if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{data:null,error:e};}
   const data=await r.json().catch(()=>null);
   return{data,error:null};
@@ -923,7 +926,7 @@ async function dbDelete(table,filters={}) {
   let url=`${SURL}/rest/v1/${table}?`;
   const parts=Object.entries(filters).map(([k,v])=>`${k}=${v}`);
   url+=parts.join('&');
-  const r=await fetch(url,{method:'DELETE',headers:HEADERS});
+  const r=await fetch(url,{method:'DELETE',headers:HEADERS,cache:'no-store'});
   if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{error:e};}
   return{error:null};
 }
@@ -931,7 +934,7 @@ async function dbDelete(table,filters={}) {
 async function dbInsertMany(table,rows) {
   const r=await fetch(`${SURL}/rest/v1/${table}`,{
     method:'POST',headers:{...HEADERS,'Prefer':'return=minimal'},
-    body:JSON.stringify(rows)
+    body:JSON.stringify(rows),cache:'no-store'
   });
   if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{error:e};}
   return{error:null};
@@ -942,15 +945,15 @@ async function dbUpsert(table,rows,onConflict) {
   const h={...HEADERS,'Prefer':'resolution=merge-duplicates,return=representation'};
   let url=`${SURL}/rest/v1/${table}`;
   if(onConflict) url+=`?on_conflict=${onConflict}`;
-  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+  const r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body),cache:'no-store'});
   if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{data:null,error:e};}
   const data=await r.json().catch(()=>null);
   return{data,error:null};
 }
 
 async function dbSelectRange(table,cols,dateFrom,dateTo) {
-  const url=`${SURL}/rest/v1/${table}?select=${cols}&data=gte.${dateFrom}&data=lte.${dateTo}`;
-  const r=await fetch(url,{headers:HEADERS});
+  const url=`${SURL}/rest/v1/${table}?select=${cols}&data=gte.${dateFrom}&data=lte.${dateTo}&_t=${Date.now()}`;
+  const r=await fetch(url,{headers:HEADERS,cache:'no-store'});
   if(!r.ok){return{data:null,error:await r.json().catch(()=>({}))};}
   return{data:await r.json().catch(()=>[]),error:null};
 }
@@ -959,7 +962,7 @@ async function dbPatch(table,obj,filters={}) {
   let url=`${SURL}/rest/v1/${table}?`;
   const parts=Object.entries(filters).map(([k,v])=>`${k}=${v}`);
   url+=parts.join('&');
-  const r=await fetch(url,{method:'PATCH',headers:HEADERS,body:JSON.stringify(obj)});
+  const r=await fetch(url,{method:'PATCH',headers:HEADERS,body:JSON.stringify(obj),cache:'no-store'});
   if(!r.ok){const e=await r.json().catch(()=>({message:r.statusText}));return{error:e};}
   return{error:null};
 }
