@@ -1441,19 +1441,20 @@ function renderStats(){
     <div class="stat-card"><div class="stat-label">Sequência atual</div><div class="stat-val">${streakData.sequencia_atual}</div><div class="stat-sub">dias consecutivos</div></div>
     <div class="stat-card"><div class="stat-label">Recorde</div><div class="stat-val">${streakData.sequencia_maxima}</div><div class="stat-sub">maior sequência</div></div>`;
 
-  // Habit stats
-  const last30=new Date(Date.now()-30*86400000).toISOString().split('T')[0];
-  const days30=Object.keys(byDate).filter(d=>d>=last30);
-  const total30=Math.max(days30.length,1);
+  // Habit stats — denominador SEMPRE fixo em 30 dias corridos (não depende de quantos dias têm registro)
+  const hoje30=new Date();hoje30.setDate(hoje30.getDate()-29); // hoje + 29 dias atrás = 30 dias
+  const last30=localDateStr(hoje30);
+  const diasComRegistro=Object.keys(byDate).filter(d=>d>=last30);
+  const total30=30; // fixo — são 30 dias corridos, tenha registro ou não
   const hs=document.getElementById('habit-stats');hs.innerHTML='';
   ITEMS.forEach(item=>{
-    const count=days30.filter(d=>byDate[d]&&byDate[d][item.id]).length;
+    const count=diasComRegistro.filter(d=>byDate[d]&&byDate[d][item.id]).length;
     const pct=Math.round(count/total30*100);
     const bc=pct>=70?'good':pct>=40?'mid':'bad';
     const row=document.createElement('div');row.className='hs-row';
     row.innerHTML=`<div class="hs-top"><span class="hs-name">${item.title}</span><span class="hs-pct">${pct}%</span></div>
       <div class="hs-bar-wrap"><div class="hs-bar ${bc}" style="width:${pct}%"></div></div>
-      <div class="hs-sub">${count} de ${total30} dias nos últimos 30d</div>`;
+      <div class="hs-sub">${count} de 30 dias (últimos 30 dias corridos)</div>`;
     hs.appendChild(row);
   });
 
