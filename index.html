@@ -517,6 +517,7 @@ footer strong{color:var(--coal)}
         <input type="date" id="protocolo-start" style="background:var(--stone);border:1px solid var(--ash);color:var(--fire);font-family:'Space Mono',monospace;font-size:11px;padding:6px 8px;outline:none">
         <button class="btn btn-g" onclick="salvarInicioProtocolo()" style="font-size:9px;padding:6px 10px">Salvar</button>
       </div>
+      <div style="font-size:9px;color:var(--gray);margin-top:4px;max-width:140px">Escolha a data e clique Salvar</div>
     </div>
   </div>
 </div>
@@ -1770,17 +1771,17 @@ let protocoloStartCache=null;
 
 async function salvarInicioProtocolo(){
   const val=document.getElementById('protocolo-start').value;
-  if(!val)return;
+  if(!val){toast('Escolha uma data primeiro.',true);return;}
   toast('Salvando data de início...');
-  try{
-    await dbUpsert('config',{chave:'protocolo_start',valor:val,updated_at:new Date().toISOString()},'chave');
-    protocoloStartCache=val;
-    localStorage.setItem('mc_protocolo_start',val); // cache local de emergência
-    toast('✓ Data de início salva e sincronizada.');
-  }catch(e){
-    toast('Erro ao salvar data.',true);
-    console.error(e);
+  const{error}=await dbUpsert('config',{chave:'protocolo_start',valor:val,updated_at:new Date().toISOString()},'chave');
+  if(error){
+    toast('⚠ Erro ao salvar: '+(error.message||JSON.stringify(error)),true);
+    console.error('salvarInicioProtocolo ERRO:',error);
+    return;
   }
+  protocoloStartCache=val;
+  localStorage.setItem('mc_protocolo_start',val);
+  toast('✓ Data de início salva e sincronizada.');
   renderContadorDias();
 }
 
