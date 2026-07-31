@@ -1044,9 +1044,31 @@ function toast(msg,err=false){const t=document.getElementById('toast');t.textCon
 // ── DATE ──────────────────────────────────────────────────────
 (()=>{const days=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'],months=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'],d=new Date();document.getElementById('date-el').textContent=`${days[d.getDay()]}, ${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;})();
 
-// ── ITEMS STORAGE ─────────────────────────────────────────────
-function loadItems(){const s=localStorage.getItem('mc_items_v4');ITEMS=s?JSON.parse(s):[...DEFAULT_ITEMS];saveItemsLocal();}
-function saveItemsLocal(){localStorage.setItem('mc_items_v4',JSON.stringify(ITEMS));}
+// ── ITEMS STORAGE — agora no banco, sincronizado entre dispositivos ──
+async function loadItems(){
+  try{
+    const{data}=await dbSelect('config','valor',{'chave':'eq.items_checklist'},{limit:1});
+    const row=Array.isArray(data)?data[0]:data;
+    if(row&&row.valor){
+      ITEMS=JSON.parse(row.valor);
+    }else{
+      ITEMS=[...DEFAULT_ITEMS];
+      await saveItemsRemote();
+    }
+  }catch(e){
+    console.warn('loadItems fallback local:',e);
+    const s=localStorage.getItem('mc_items_v4');
+    ITEMS=s?JSON.parse(s):[...DEFAULT_ITEMS];
+  }
+}
+async function saveItemsRemote(){
+  localStorage.setItem('mc_items_v4',JSON.stringify(ITEMS)); // cache local de emergência
+  try{
+    await dbUpsert('config',{chave:'items_checklist',valor:JSON.stringify(ITEMS),updated_at:new Date().toISOString()},'chave');
+  }catch(e){console.warn('saveItemsRemote falhou:',e);}
+}
+// alias para manter compatibilidade com chamadas existentes no código
+function saveItemsLocal(){ saveItemsRemote(); }
 
 // ── LOAD TODAY ────────────────────────────────────────────────
 async function loadTodayData(){
@@ -1734,14 +1756,38 @@ function updateNav(){const secs=document.querySelectorAll('section[id]');let cur
 window.addEventListener('scroll',updateNav,{passive:true});
 
 // ── PROTOCOLO 90 DIAS ────────────────────────────────────────
-function salvarInicioProtocolo(){
+let protocoloStartCache=null;
+
+async function salvarInicioProtocolo(){
   const val=document.getElementById('protocolo-start').value;
-  if(val)localStorage.setItem('mc_protocolo_start',val);
+  if(!val)return;
+  toast('Salvando data de início...');
+  try{
+    await dbUpsert('config',{chave:'protocolo_start',valor:val,updated_at:new Date().toISOString()},'chave');
+    protocoloStartCache=val;
+    localStorage.setItem('mc_protocolo_start',val); // cache local de emergência
+    toast('✓ Data de início salva e sincronizada.');
+  }catch(e){
+    toast('Erro ao salvar data.',true);
+    console.error(e);
+  }
   renderContadorDias();
 }
 
+async function loadProtocoloStart(){
+  try{
+    const{data}=await dbSelect('config','valor',{'chave':'eq.protocolo_start'},{limit:1});
+    const row=Array.isArray(data)?data[0]:data;
+    protocoloStartCache=row&&row.valor?row.valor:null;
+    if(protocoloStartCache) localStorage.setItem('mc_protocolo_start',protocoloStartCache);
+  }catch(e){
+    console.warn('loadProtocoloStart fallback local:',e);
+    protocoloStartCache=localStorage.getItem('mc_protocolo_start');
+  }
+}
+
 function renderContadorDias(){
-  const startStr=localStorage.getItem('mc_protocolo_start');
+  const startStr=protocoloStartCache;
   const inp=document.getElementById('protocolo-start');
   if(!startStr){
     document.getElementById('dc-num').textContent='?';
@@ -2133,7 +2179,9 @@ async function init(){
     sync('spin','conectando...');
     // Criar tabela timer_log se não existir (via upsert seguro)
     const{data:strk}=await dbSelect('streak','*',{},{limit:1,single:true});if(strk)streakData=strk;
-    loadItems();
+    await loadItems();
+    await loadProtocoloStart();
+    renderContadorDias();
     await loadTodayData();
     renderAll();
     await loadTimerData();
